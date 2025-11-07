@@ -82,21 +82,27 @@ size_t genericBf16GemmKernelLauncherSm80(__nv_bfloat16 const* A, __nv_bfloat16 c
   using EpilogueOp = cutlass::epilogue::thread::LinearCombination<
       ElementOutput, AlignmentC, ElementAccumulator, ElementAccumulator>;
 
-  // DefaultGemm for CUTLASS 2.x - alignment comes before complex transform
+  // Match the pattern from group_gemm.cuh - ComplexTransform after layout
   using GemmKernel = typename cutlass::gemm::kernel::DefaultGemm<
-      ElementA, LayoutA, AlignmentA,
-      ElementB, LayoutB, AlignmentB,
-      ElementOutput, LayoutC,
-      ElementAccumulator,
-      OperatorClass,
-      arch,
-      ThreadblockShape,
-      WarpShape,
-      InstructionShape,
-      EpilogueOp,
-      cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>,
-      NUM_STAGES_,
-      cutlass::arch::OpMultiplyAdd  // Math operator
+      ElementA,                              // Element A
+      LayoutA,                               // Layout A
+      cutlass::ComplexTransform::kNone,      // Complex transform A
+      AlignmentA,                            // Alignment A
+      ElementB,                              // Element B
+      LayoutB,                               // Layout B
+      cutlass::ComplexTransform::kNone,      // Complex transform B
+      AlignmentB,                            // Alignment B
+      ElementOutput,                         // Element C&D
+      LayoutC,                               // Layout C&D
+      ElementAccumulator,                    // Accumulator
+      OperatorClass,                         // Operator Class
+      arch,                                  // Architecture
+      ThreadblockShape,                      // Threadblock shape
+      WarpShape,                             // Warp shape
+      InstructionShape,                      // Instruction shape
+      EpilogueOp,                            // Epilogue
+      cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>,  // Swizzle
+      NUM_STAGES_                            // Stages
       >::GemmKernel;
 
   using Gemm = cutlass::gemm::device::GemmUniversal<GemmKernel>;
