@@ -16,6 +16,7 @@ limitations under the License.
 
 from .core import (
     gen_gemm_module,
+    gen_gemm_sm80_module_cutlass_bf16,
     gen_gemm_sm100_module_cutlass_fp4,
     gen_gemm_sm120_module_cutlass_fp4,
     gen_gemm_sm100_module_cutlass_fp8,
@@ -30,6 +31,7 @@ from .deepgemm import gen_deepgemm_sm100_module
 
 __all__ = [
     "gen_gemm_module",
+    "gen_gemm_sm80_module_cutlass_bf16",
     "gen_gemm_sm100_module_cutlass_fp4",
     "gen_gemm_sm120_module_cutlass_fp4",
     "gen_gemm_sm100_module_cutlass_fp8",

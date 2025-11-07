@@ -140,6 +140,29 @@ def gen_gemm_sm120_module_cutlass_fp4() -> JitSpec:
     )
 
 
+def gen_gemm_sm80_module_cutlass_bf16() -> JitSpec:
+    """Generate BF16 GEMM module for SM80 (Ampere) architecture."""
+    source_paths = [
+        jit_env.FLASHINFER_CSRC_DIR / "bf16_gemm_cutlass.cu",
+    ]
+
+    nvcc_flags = current_compilation_context.get_nvcc_flags_list(
+        supported_major_versions=[8, 9]
+    )
+
+    return gen_jit_spec(
+        "bf16_gemm_cutlass",
+        source_paths,
+        extra_cuda_cflags=nvcc_flags
+        + [
+            "-DENABLE_BF16",
+        ],
+        extra_cflags=[
+            "-DFAST_BUILD",
+        ],
+    )
+
+
 def gen_gemm_sm100_module_cutlass_fp8() -> JitSpec:
     gen_directory = jit_env.FLASHINFER_GEN_SRC_DIR / "gen_gemm_sm100_cutlass_fp8"
     os.makedirs(gen_directory, exist_ok=True)
