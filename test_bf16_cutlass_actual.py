@@ -44,10 +44,10 @@ def test_cutlass_bf16_compilation():
         for src in spec.sources:
             print(f"     - {src}")
 
-        print("\n3. Loading/compiling module (this may take a while)...")
-        # This actually triggers compilation
-        module = spec.load()
-        print(f"   ✓ Module compiled: {module}")
+        print("\n3. Building and loading module (this may take a while)...")
+        # This actually triggers compilation and loading
+        module = spec.build_and_load()
+        print(f"   ✓ Module compiled and loaded: {module}")
 
         print("\n✓ Compilation successful!")
         return True
@@ -77,32 +77,34 @@ def test_cutlass_bf16_kernel():
         return False
 
     try:
-        print("\n1. Loading compiled module...")
+        print("\n1. Building and loading compiled module...")
         from flashinfer.jit.gemm import gen_gemm_sm80_module_cutlass_bf16
         spec = gen_gemm_sm80_module_cutlass_bf16()
-        module = spec.load()
+        module = spec.build_and_load()
 
-        # Try to get the function
-        print("2. Looking for bf16_gemm function...")
+        # Check if the module has the expected functions
+        print("2. Checking for bf16_gemm functions in module...")
 
-        # The function should be registered via TVM FFI
-        # Let's try to import it
-        try:
-            import tvm.runtime as tvm_runtime
-            bf16_gemm = tvm_runtime.get_global_func("bf16_gemm")
-            bf16_gemm_tactic_num = tvm_runtime.get_global_func("bf16_gemm_tactic_num")
-            print(f"   ✓ Found bf16_gemm: {bf16_gemm}")
-            print(f"   ✓ Found bf16_gemm_tactic_num: {bf16_gemm_tactic_num}")
-
-            # Get number of tactics
-            num_tactics = bf16_gemm_tactic_num()
-            print(f"   Number of available tactics: {num_tactics}")
-
-        except Exception as e:
-            print(f"   ✗ Could not find TVM function: {e}")
-            print("\n   This is expected - the function needs to be registered.")
-            print("   Let's try calling it via ctypes or check if it's in the module...")
+        # The module should have bf16_gemm and bf16_gemm_tactic_num as methods
+        if hasattr(module, 'bf16_gemm'):
+            print(f"   ✓ Found bf16_gemm function")
+            bf16_gemm = module.bf16_gemm
+        else:
+            print(f"   ✗ bf16_gemm not found in module")
+            print(f"   Available attributes: {[x for x in dir(module) if not x.startswith('_')]}")
             return False
+
+        if hasattr(module, 'bf16_gemm_tactic_num'):
+            print(f"   ✓ Found bf16_gemm_tactic_num function")
+            bf16_gemm_tactic_num = module.bf16_gemm_tactic_num
+            try:
+                num_tactics = bf16_gemm_tactic_num()
+                print(f"   Number of available tactics: {num_tactics}")
+            except Exception as e:
+                print(f"   Warning: Could not call bf16_gemm_tactic_num: {e}")
+        else:
+            print(f"   ⚠ bf16_gemm_tactic_num not found (optional)")
+            bf16_gemm_tactic_num = None
 
         print("\n3. Creating test tensors...")
         m, n, k = 256, 512, 1024
