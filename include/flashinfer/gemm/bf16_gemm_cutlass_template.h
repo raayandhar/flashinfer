@@ -82,16 +82,15 @@ size_t genericBf16GemmKernelLauncherSm80(__nv_bfloat16 const* A, __nv_bfloat16 c
   using EpilogueOp = cutlass::epilogue::thread::LinearCombination<
       ElementOutput, AlignmentC, ElementAccumulator, ElementAccumulator>;
 
-  // Match the pattern from group_gemm.cuh - ComplexTransform after layout
+  // DefaultGemm (non-grouped) doesn't support ComplexTransform in this CUTLASS version
+  // Only DefaultGemmGrouped does - so we use alignment-only signature
   using GemmKernel = typename cutlass::gemm::kernel::DefaultGemm<
       ElementA,                              // Element A
       LayoutA,                               // Layout A
-      cutlass::ComplexTransform::kNone,      // Complex transform A
-      AlignmentA,                            // Alignment A
+      AlignmentA,                            // Alignment A (no ComplexTransform!)
       ElementB,                              // Element B
       LayoutB,                               // Layout B
-      cutlass::ComplexTransform::kNone,      // Complex transform B
-      AlignmentB,                            // Alignment B
+      AlignmentB,                            // Alignment B (no ComplexTransform!)
       ElementOutput,                         // Element C&D
       LayoutC,                               // Layout C&D
       ElementAccumulator,                    // Accumulator
