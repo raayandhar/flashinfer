@@ -82,11 +82,22 @@ size_t genericBf16GemmKernelLauncherSm80(__nv_bfloat16 const* A, __nv_bfloat16 c
   using EpilogueOp = cutlass::epilogue::thread::LinearCombination<
       ElementOutput, AlignmentC, ElementAccumulator, ElementAccumulator>;
 
+  // DefaultGemm for CUTLASS 2.x - alignment comes before complex transform
   using GemmKernel = typename cutlass::gemm::kernel::DefaultGemm<
-      ElementA, LayoutA, cutlass::ComplexTransform::kNone, AlignmentA, ElementB, LayoutB,
-      cutlass::ComplexTransform::kNone, AlignmentB, ElementOutput, LayoutC, ElementAccumulator,
-      OperatorClass, arch, ThreadblockShape, WarpShape, InstructionShape, EpilogueOp,
-      cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>, NUM_STAGES_>::GemmKernel;
+      ElementA, LayoutA, AlignmentA,
+      ElementB, LayoutB, AlignmentB,
+      ElementOutput, LayoutC,
+      ElementAccumulator,
+      OperatorClass,
+      arch,
+      ThreadblockShape,
+      WarpShape,
+      InstructionShape,
+      EpilogueOp,
+      cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>,
+      NUM_STAGES_,
+      cutlass::arch::OpMultiplyAdd  // Math operator
+      >::GemmKernel;
 
   using Gemm = cutlass::gemm::device::GemmUniversal<GemmKernel>;
 
