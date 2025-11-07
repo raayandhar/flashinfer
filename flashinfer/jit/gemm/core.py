@@ -141,11 +141,12 @@ def gen_gemm_sm120_module_cutlass_fp4() -> JitSpec:
 
 
 def gen_gemm_sm80_module_cutlass_bf16() -> JitSpec:
-    """Generate BF16 GEMM module for SM80 (Ampere) architecture."""
+    """Generate BF16 GEMM module for SM80+ (Ampere/Ada) architecture."""
     source_paths = [
         jit_env.FLASHINFER_CSRC_DIR / "bf16_gemm_cutlass.cu",
     ]
 
+    # SM89 is Ada Lovelace (RTX 40xx), which uses similar tensor core capabilities to SM80
     nvcc_flags = current_compilation_context.get_nvcc_flags_list(
         supported_major_versions=[8, 9]
     )
