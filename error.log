@@ -1,37 +1,13 @@
-(.venv) root@92f2318f3ff8:/workspace/flashinfer# git fetch origin && git pull && python scripts/clear_flashinfer_cache.py 
-remote: Enumerating objects: 13, done.
-remote: Counting objects: 100% (13/13), done.
-remote: Compressing objects: 100% (2/2), done.
-remote: Total 7 (delta 5), reused 6 (delta 4), pack-reused 0 (from 0)
-Unpacking objects: 100% (7/7), 1.03 KiB | 14.00 KiB/s, done.
-From https://github.com/raayandhar/flashinfer
-   127cf8fe..79feec8f  bf16_cutlass_gemm -> origin/bf16_cutlass_gemm
-Updating 127cf8fe..79feec8f
-Fast-forward
- error.log                                            | 100 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
- include/flashinfer/gemm/bf16_gemm_cutlass_template.h |   2 +-
- 2 files changed, 90 insertions(+), 12 deletions(-)
-[removed] /root/.cache/flashinfer
-[skip] flashinfer-jit-cache (missing)
-[skip] flashinfer-cubin (missing)
-(.venv) root@92f2318f3ff8:/workspace/flashinfer# CUDA_LAUNCH_BLOCKING=1 pytest tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-64-64-16] -v
-======================================================= test session starts =======================================================
-platform linux -- Python 3.11.11, pytest-9.0.0, pluggy-1.6.0 -- /workspace/flashinfer/.venv/bin/python
-cachedir: .pytest_cache
-rootdir: /workspace/flashinfer
-configfile: pytest.ini
-collected 1 item                                                                                                                  
-
-tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-64-64-16] FAILED                                                        [100%]
+tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] FAILED                                                     [100%]
 
 ============================================================ FAILURES =============================================================
-________________________________________________ test_mm_bf16[res_dtype0-64-64-16] ________________________________________________
+______________________________________________ test_mm_bf16[res_dtype0-8192-2560-1] _______________________________________________
 
-m = 16, n = 64, k = 64, res_dtype = torch.bfloat16
+m = 1, n = 2560, k = 8192, res_dtype = torch.bfloat16
 
-    @pytest.mark.parametrize("m", [16, 64, 256])
-    @pytest.mark.parametrize("n", [64, 256])
-    @pytest.mark.parametrize("k", [64, 256, 512])
+    @pytest.mark.parametrize("m", [1, 2, 4, 8, 16])
+    @pytest.mark.parametrize("n", [2560, 5120])
+    @pytest.mark.parametrize("k", [8192, 16384])
     @pytest.mark.parametrize("res_dtype", [torch.bfloat16, torch.float16])
     def test_mm_bf16(m: int, n: int, k: int, res_dtype: torch.dtype):
         compute_capability = get_compute_capability(torch.device(device="cuda"))
@@ -65,16 +41,20 @@ flashinfer/autotuner.py:217: in __call__
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 flashinfer/gemm.py:534: in forward
     module.bf16_gemm(
+python/tvm_ffi/cython/function.pxi:814: in core.Function.__call__
+    ???
+<unknown>:0: in __tvm_ffi_bf16_gemm
+    ???
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
->   ???
-E   RuntimeError: Error in function 'genericBf16GemmKernelLauncherSm100' at /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h:169: cutlass gemm.can_implement(arguments) failed: Invalid status
+>   TVM_FFI_ICHECK_EQ(mat1.size(1), mat2.size(1))
+E   RuntimeError: Check failed: mat1.size(1) == mat2.size(1) (8192 vs. 2560) : mat1 and mat2 shapes cannot be multiplied (1x8192 and 8192x2560)
 
-python/tvm_ffi/cython/function.pxi:814: RuntimeError
+csrc/bf16_gemm_cutlass.cu:98: RuntimeError
 ------------------------------------------------------ Captured stderr call -------------------------------------------------------
-2025-11-09 20:34:34,572 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
-2025-11-09 20:35:03,766 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+2025-11-09 20:38:59,506 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+2025-11-09 20:39:29,297 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
 ===================================================== short test summary info =====================================================
-FAILED tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-64-64-16] - RuntimeError: Error in function 'genericBf16GemmKernelLauncherSm100' at /workspace/flashinfer/include/flashinfer/gemm/bf16_gem...
-======================================================= 1 failed in 29.82s ========================================================
+FAILED tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] - RuntimeError: Check failed: mat1.size(1) == mat2.size(1) (8192 vs. 2560) : mat1 and mat2 shapes cannot be multiplied (1x8192 a...
+======================================================= 1 failed in 30.43s ========================================================
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# 
