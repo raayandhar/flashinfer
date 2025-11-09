@@ -112,14 +112,15 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   using MainloopSchedule = typename SMTypeAdapter<XSM_>::MainloopSchedule;
   using EpilogueTileType = cutlass::epilogue::collective::EpilogueTileAuto;
 
-  // Use explicit SM90 EVT (Epilogue Visitor Tree) approach like FP8, but without scaling
-  // This is just: D = acc (with type conversion from float accumulator to output type)
-  using CustomEVT = cutlass::epilogue::fusion::Sm90AccFetch;
+  // Use LinearCombination with void ElementC (no source C matrix) like FP4
+  // This performs type conversion from float accumulator to output type without alpha/beta
+  using FusionCallbacks = cutlass::epilogue::fusion::LinearCombination<
+      ElementD, ElementCompute, void, ElementCompute>;
 
   using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
       ArchTag, OperatorClass, TileShape, ClusterShape, EpilogueTileType, ElementAccumulator,
       ElementCompute, ElementC, LayoutC, AlignmentC, ElementD, LayoutD, AlignmentD,
-      EpilogueSchedule, CustomEVT>::CollectiveOp;
+      EpilogueSchedule, FusionCallbacks>::CollectiveOp;
 
   using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
       ArchTag, OperatorClass, ElementA, LayoutA, AlignmentA, ElementB, LayoutB, AlignmentB,
@@ -151,9 +152,7 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
        stride_B},
       {{}, nullptr, stride_C, reinterpret_cast<ElementOutput*>(D), stride_D}};
 
-  auto& fusion_args = arguments.epilogue.thread;
-  fusion_args.alpha = 1.0f;
-  fusion_args.beta = 0.0f;
+  // No need to set alpha/beta since we're using LinearCombination with void ElementC
 
   Gemm gemm;
 
