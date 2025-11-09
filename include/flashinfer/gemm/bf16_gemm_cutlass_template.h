@@ -228,12 +228,4 @@ std::vector<CutlassGemmConfig> CutlassBf16GemmRunner<T>::getConfigs() const {
 }  // namespace gemm
 }  // namespace flashinfer
 
-#define INSTANCE_BF16_GEMM_TEMPLATE_SM100(RET_TYPE, TILE_M, TILE_N, TILE_K, CGA_M_, CGA_N_, CGA_K_, \
-                                          SM_TYPE)                                                  \
-  template size_t genericBf16GemmKernelLauncherSm100<                                               \
-      RET_TYPE, cutlass::arch::Sm100, TILE_M, TILE_N, TILE_K,                                       \
-      cute::Shape<cute::Int<CGA_M_>, cute::Int<CGA_N_>, cute::Int<CGA_K_>>, SM_TYPE>(               \
-      __nv_bfloat16 const* A, __nv_bfloat16 const* B, RET_TYPE* D, int m, int n, int k, int b,      \
-      CutlassGemmConfig config, char* workspacePtr, size_t const workspaceBytes, cudaStream_t stream);
-
 #endif  // FLASHINFER_BF16_GEMM_CUTLASS_TEMPLATE_H_

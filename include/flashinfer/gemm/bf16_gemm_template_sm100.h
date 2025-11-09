@@ -16,6 +16,7 @@
 #ifndef FLASHINFER_BF16_GEMM_TEMPLATE_SM100_H_
 #define FLASHINFER_BF16_GEMM_TEMPLATE_SM100_H_
 
+#include "fp8_gemm_cutlass_template.h"
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
@@ -43,21 +44,21 @@
 namespace flashinfer {
 namespace gemm {
 
-struct Bf16OneSm {};
-struct Bf16TwoSm {};
-
 template <typename>
 struct SMTypeAdapter {};
 
+struct _1SM;
+struct _2SM;
+
 template <>
-struct SMTypeAdapter<Bf16OneSm> {
+struct SMTypeAdapter<_1SM> {
   static int const Scale = 1;
   using EpilogueSchedule = cutlass::epilogue::TmaWarpSpecialized1Sm;
   using MainloopSchedule = cutlass::gemm::KernelTmaWarpSpecialized1SmSm100;
 };
 
 template <>
-struct SMTypeAdapter<Bf16TwoSm> {
+struct SMTypeAdapter<_2SM> {
   static int const Scale = 2;
   using EpilogueSchedule = cutlass::epilogue::TmaWarpSpecialized2Sm;
   using MainloopSchedule = cutlass::gemm::KernelTmaWarpSpecialized2SmSm100;
@@ -174,5 +175,13 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
 
 }  // namespace gemm
 }  // namespace flashinfer
+
+#define INSTANCE_BF16_GEMM_TEMPLATE_SM100(RET_TYPE, TILE_M, TILE_N, TILE_K, CGA_M_, CGA_N_, CGA_K_, \
+  SM_TYPE)                                                  \
+template size_t genericBf16GemmKernelLauncherSm100<                                               \
+RET_TYPE, cutlass::arch::Sm100, TILE_M, TILE_N, TILE_K,                                       \
+cute::Shape<cute::Int<CGA_M_>, cute::Int<CGA_N_>, cute::Int<CGA_K_>>, SM_TYPE>(               \
+__nv_bfloat16 const* A, __nv_bfloat16 const* B, RET_TYPE* D, int m, int n, int k, int b,      \
+CutlassGemmConfig config, char* workspacePtr, size_t const workspaceBytes, cudaStream_t stream);
 
 #endif  // FLASHINFER_BF16_GEMM_TEMPLATE_SM100_H_
