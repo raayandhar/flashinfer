@@ -114,10 +114,6 @@ size_t dispatchToArch(__nv_bfloat16 const* A, __nv_bfloat16 const* B, void* D, i
       return dispatchGemmClusterShapeSm100<T, arch, 128, 128, 128>(
           B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
       break;
-    case CutlassTileConfigSM100::CtaShape128x256x128B:
-      return dispatchGemmClusterShapeSm100<T, arch, 128, 256, 128>(
-          B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-      break;
 
     default:
       throw std::runtime_error("unsupported tile config for bf16 gemm");
@@ -179,10 +175,11 @@ template <typename T>
 std::vector<CutlassGemmConfig> CutlassBf16GemmRunner<T>::getConfigs() const {
   std::vector<CutlassGemmConfig> candidate_configs;
 
+  // BF16 GEMM with 2 stages: 128x256 tile exceeds shared memory, so we exclude it
   std::vector<CutlassTileConfigSM100> tilesSm100 = {
       CutlassTileConfigSM100::CtaShape64x64x128B,   CutlassTileConfigSM100::CtaShape64x128x128B,
       CutlassTileConfigSM100::CtaShape64x256x128B,  CutlassTileConfigSM100::CtaShape128x64x128B,
-      CutlassTileConfigSM100::CtaShape128x128x128B, CutlassTileConfigSM100::CtaShape128x256x128B,
+      CutlassTileConfigSM100::CtaShape128x128x128B,
   };
 
   std::vector<ClusterShape> clusterShapes = {
