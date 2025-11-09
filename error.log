@@ -1,16 +1,16 @@
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# git fetch origin && git pull && python scripts/clear_flashinfer_cache.py 
-remote: Enumerating objects: 5, done.
-remote: Counting objects: 100% (5/5), done.
-remote: Total 5 (delta 4), reused 5 (delta 4), pack-reused 0 (from 0)
-Unpacking objects: 100% (5/5), 1.25 KiB | 24.00 KiB/s, done.
+remote: Enumerating objects: 13, done.
+remote: Counting objects: 100% (13/13), done.
+remote: Compressing objects: 100% (1/1), done.
+remote: Total 7 (delta 5), reused 7 (delta 5), pack-reused 0 (from 0)
+Unpacking objects: 100% (7/7), 1.06 KiB | 15.00 KiB/s, done.
 From https://github.com/raayandhar/flashinfer
-   7e00a1f6..ce770a94  bf16_cutlass_gemm -> origin/bf16_cutlass_gemm
-Updating 7e00a1f6..ce770a94
+   ce770a94..11545696  bf16_cutlass_gemm -> origin/bf16_cutlass_gemm
+Updating ce770a94..11545696
 Fast-forward
- csrc/bf16_gemm_cutlass.cu |  31 +++++++++++++++++++++++++-
- error.log                 | 115 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-------------------------
- flashinfer/gemm.py        |   2 +-
- 3 files changed, 117 insertions(+), 31 deletions(-)
+ error.log                                            | 46 +++++++++++++++++++++++++++++++---------------
+ include/flashinfer/gemm/bf16_gemm_cutlass_template.h |  2 +-
+ 2 files changed, 32 insertions(+), 16 deletions(-)
 [removed] /root/.cache/flashinfer
 [skip] flashinfer-jit-cache (missing)
 [skip] flashinfer-cubin (missing)
@@ -68,91 +68,13 @@ flashinfer/gemm.py:534: in forward
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 >   ???
-E   RuntimeError: [Bf16 Gemm Runner] failed to initialize
+E   RuntimeError: Error in function 'genericBf16GemmKernelLauncherSm100' at /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h:169: cutlass gemm.can_implement(arguments) failed: Invalid status
 
 python/tvm_ffi/cython/function.pxi:814: RuntimeError
 ------------------------------------------------------ Captured stderr call -------------------------------------------------------
-2025-11-09 20:24:06,220 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
-TMA Desc Addr:   0x7ffc0cd9a280
-format         9
-dim            3
-gmem_address   0x7a4a6d000800
-globalDim      (64,64,1,1,1)
-globalStrides  (2,128,0,0,0)
-boxDim         (64,64,1,1,1)
-elementStrides (1,1,1,1,1)
-interleave     0
-swizzle        3
-l2Promotion    2
-oobFill        0
-Error: Failed to initialize the TMA descriptor 700
-TMA Desc Addr:   0x7ffc0cd9a280
-format         9
-dim            3
-gmem_address   0x7a4a6d003200
-globalDim      (64,1,1,1,1)
-globalStrides  (2,128,0,0,0)
-boxDim         (64,64,1,1,1)
-elementStrides (1,1,1,1,1)
-interleave     0
-swizzle        3
-l2Promotion    2
-oobFill        0
-Error: Failed to initialize the TMA descriptor 700
-TMA Desc Addr:   0x7ffc0cd9a280
-format         9
-dim            3
-gmem_address   0x7a4a6d000800
-globalDim      (64,64,1,1,1)
-globalStrides  (2,128,0,0,0)
-boxDim         (64,64,1,1,1)
-elementStrides (1,1,1,1,1)
-interleave     0
-swizzle        3
-l2Promotion    2
-oobFill        0
-Error: Failed to initialize the TMA descriptor 700
-TMA Desc Addr:   0x7ffc0cd9a280
-format         9
-dim            3
-gmem_address   0x7a4a6d003200
-globalDim      (64,1,1,1,1)
-globalStrides  (2,128,0,0,0)
-boxDim         (64,64,1,1,1)
-elementStrides (1,1,1,1,1)
-interleave     0
-swizzle        3
-l2Promotion    2
-oobFill        0
-Error: Failed to initialize the TMA descriptor 700
-TMA Desc Addr:   0x7ffc0cd9a280
-format         9
-dim            3
-gmem_address   0
-globalDim      (64,1,1,1,1)
-globalStrides  (2,128,0,0,0)
-boxDim         (64,32,1,1,1)
-elementStrides (1,1,1,1,1)
-interleave     0
-swizzle        3
-l2Promotion    2
-oobFill        0
-Error: Failed to initialize the TMA descriptor 700
-TMA Desc Addr:   0x7ffc0cd9a280
-format         9
-dim            3
-gmem_address   0x7a4a6d003400
-globalDim      (64,1,1,1,1)
-globalStrides  (2,128,0,0,0)
-boxDim         (64,32,1,1,1)
-elementStrides (1,1,1,1,1)
-interleave     0
-swizzle        3
-l2Promotion    2
-oobFill        0
-Error: Failed to initialize the TMA descriptor 700
-2025-11-09 20:24:33,683 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+2025-11-09 20:28:09,652 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+2025-11-09 20:28:37,019 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
 ===================================================== short test summary info =====================================================
-FAILED tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-64-64-16] - RuntimeError: [Bf16 Gemm Runner] failed to initialize
-======================================================= 1 failed in 28.02s ========================================================
+FAILED tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-64-64-16] - RuntimeError: Error in function 'genericBf16GemmKernelLauncherSm100' at /workspace/flashinfer/include/flashinfer/gemm/bf16_gem...
+======================================================= 1 failed in 27.95s ========================================================
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# 
