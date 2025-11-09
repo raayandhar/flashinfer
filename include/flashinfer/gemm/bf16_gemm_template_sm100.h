@@ -110,18 +110,16 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   using ClusterShape = ClusterShape_;
   using EpilogueSchedule = typename SMTypeAdapter<XSM_>::EpilogueSchedule;
   using MainloopSchedule = typename SMTypeAdapter<XSM_>::MainloopSchedule;
-  
-  // Use default epilogue tile instead of Auto to avoid TMEM-related issues
-  using EpilogueTileType = cutlass::epilogue::collective::EpilogueTileDefault;
+  using EpilogueTileType = cutlass::epilogue::collective::EpilogueTileAuto;
 
-  // Simplest epilogue with linear combination only
-  using FusionOp = cutlass::epilogue::fusion::LinearCombination<
-      ElementD, ElementCompute, ElementC, ElementCompute, cutlass::FloatRoundStyle::round_to_nearest>;
+  // Use explicit SM90 EVT (Epilogue Visitor Tree) approach like FP8, but without scaling
+  // This is just: D = acc (with type conversion from float accumulator to output type)
+  using CustomEVT = cutlass::epilogue::fusion::Sm90AccFetch;
 
   using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
       ArchTag, OperatorClass, TileShape, ClusterShape, EpilogueTileType, ElementAccumulator,
       ElementCompute, ElementC, LayoutC, AlignmentC, ElementD, LayoutD, AlignmentD,
-      EpilogueSchedule, FusionOp>::CollectiveOp;
+      EpilogueSchedule, CustomEVT>::CollectiveOp;
 
   using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
       ArchTag, OperatorClass, ElementA, LayoutA, AlignmentA, ElementB, LayoutB, AlignmentB,

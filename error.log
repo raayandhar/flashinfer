@@ -1,23 +1,21 @@
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# git fetch origin
-remote: Enumerating objects: 25, done.
-remote: Counting objects: 100% (25/25), done.
+remote: Enumerating objects: 13, done.
+remote: Counting objects: 100% (13/13), done.
 remote: Compressing objects: 100% (1/1), done.
-remote: Total 13 (delta 11), reused 13 (delta 11), pack-reused 0 (from 0)
-Unpacking objects: 100% (13/13), 3.16 KiB | 22.00 KiB/s, done.
+remote: Total 7 (delta 5), reused 7 (delta 5), pack-reused 0 (from 0)
+Unpacking objects: 100% (7/7), 1.40 KiB | 17.00 KiB/s, done.
 From https://github.com/raayandhar/flashinfer
-   6af30212..5ca1fb80  bf16_cutlass_gemm -> origin/bf16_cutlass_gemm
+   5ca1fb80..57a5e62e  bf16_cutlass_gemm -> origin/bf16_cutlass_gemm
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# git pull
-Updating 6af30212..5ca1fb80
+Updating 5ca1fb80..57a5e62e
 Fast-forward
- csrc/bf16_gemm_cutlass.jinja                         |   5 +-
- error.log                                            | 498 +++++++++++++++++++++++++++++++++++++++++-----------------------------
- flashinfer/jit/gemm/core.py                          |  15 +--
- include/flashinfer/gemm/bf16_gemm_cutlass_template.h |  38 +-----
- 4 files changed, 299 insertions(+), 257 deletions(-)
+ error.log                                          | 471 ++++++------------------------------------------------------------------
+ include/flashinfer/gemm/bf16_gemm_template_sm100.h |  10 +-
+ 2 files changed, 45 insertions(+), 436 deletions(-)
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# python scripts/clear_flashinfer_cache.py 
 [removed] /root/.cache/flashinfer
-[removed] flashinfer-jit-cache
-[removed] flashinfer-cubin
+[skip] flashinfer-jit-cache (missing)
+[skip] flashinfer-cubin (missing)
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# pytest tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-64-64-16] -v
 ======================================================= test session starts =======================================================
 platform linux -- Python 3.11.11, pytest-9.0.0, pluggy-1.6.0 -- /workspace/flashinfer/.venv/bin/python
@@ -66,9 +64,9 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 input = None, capture_output = False, timeout = None, check = True
 popenargs = (['ninja', '-v', '-C', '/root/.cache/flashinfer/0.5.2/100a/cached_ops', '-f', '/root/.cache/flashinfer/0.5.2/100a/cached_ops/bf16_gemm_cutlass/build.ninja'],)
 kwargs = {'cwd': '/root/.cache/flashinfer/0.5.2/100a/cached_ops', 'stderr': -2, 'stdout': -1, 'text': True}
-process = <Popen: returncode: 1 args: ['ninja', '-v', '-C', '/root/.cache/flashinfer/0...>
-stdout = "ninja: Entering directory `/root/.cache/flashinfer/0.5.2/100a/cached_ops'\n[1/4] /usr/local/cuda/bin/nvcc --generate-...64_64_128.cu -o bf16_gemm_cutlass/bf16_gemm_cutlass_half_64_64_128.cuda.o \nninja: build stopped: subcommand failed.\n"
-stderr = None, retcode = 1
+process = <Popen: returncode: 2 args: ['ninja', '-v', '-C', '/root/.cache/flashinfer/0...>
+stdout = 'ninja: Entering directory `/root/.cache/flashinfer/0.5.2/100a/cached_ops\'\n[1/4] /usr/local/cuda/bin/nvcc --generate...gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu".\nninja: build stopped: subcommand failed.\n'
+stderr = None, retcode = 2
 
     def run(*popenargs,
             input=None, capture_output=False, timeout=None, check=False, **kwargs):
@@ -137,7 +135,7 @@ stderr = None, retcode = 1
             if check and retcode:
 >               raise CalledProcessError(retcode, process.args,
                                          output=stdout, stderr=stderr)
-E               subprocess.CalledProcessError: Command '['ninja', '-v', '-C', '/root/.cache/flashinfer/0.5.2/100a/cached_ops', '-f', '/root/.cache/flashinfer/0.5.2/100a/cached_ops/bf16_gemm_cutlass/build.ninja']' returned non-zero exit status 1.
+E               subprocess.CalledProcessError: Command '['ninja', '-v', '-C', '/root/.cache/flashinfer/0.5.2/100a/cached_ops', '-f', '/root/.cache/flashinfer/0.5.2/100a/cached_ops/bf16_gemm_cutlass/build.ninja']' returned non-zero exit status 2.
 
 /usr/lib/python3.11/subprocess.py:571: CalledProcessError
 
@@ -220,98 +218,832 @@ ninja_file = PosixPath('/root/.cache/flashinfer/0.5.2/100a/cached_ops/bf16_gemm_
 E           RuntimeError: Ninja build failed. Ninja output:
 E           ninja: Entering directory `/root/.cache/flashinfer/0.5.2/100a/cached_ops'
 E           [1/4] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output bf16_gemm_cutlass/bf16_gemm_cutlass.cuda.o.d -DPy_LIMITED_API=0x03090000 -D_GLIBCXX_USE_CXX11_ABI=1 -isystem /usr/include/python3.11 -isystem /usr/local/cuda/include -isystem /usr/local/cuda/include/cccl -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/include -isystem /workspace/flashinfer/csrc -isystem /workspace/flashinfer/3rdparty/cutlass/include -isystem /workspace/flashinfer/3rdparty/cutlass/tools/util/include -isystem /workspace/flashinfer/3rdparty/spdlog/include --compiler-options=-fPIC --expt-relaxed-constexpr -static-global-template-stub=false -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -std=c++17 --threads=1 -use_fast_math -DFLASHINFER_ENABLE_F16 -DFLASHINFER_ENABLE_BF16 -DFLASHINFER_ENABLE_FP8_E4M3 -DFLASHINFER_ENABLE_FP8_E5M2 -DNDEBUG -O3 -gencode=arch=compute_100a,code=sm_100a -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -DENABLE_BF16 -c /workspace/flashinfer/csrc/bf16_gemm_cutlass.cu -o bf16_gemm_cutlass/bf16_gemm_cutlass.cuda.o 
-E           FAILED: [code=1] bf16_gemm_cutlass/bf16_gemm_cutlass.cuda.o 
+E           FAILED: [code=2] bf16_gemm_cutlass/bf16_gemm_cutlass.cuda.o 
 E           /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output bf16_gemm_cutlass/bf16_gemm_cutlass.cuda.o.d -DPy_LIMITED_API=0x03090000 -D_GLIBCXX_USE_CXX11_ABI=1 -isystem /usr/include/python3.11 -isystem /usr/local/cuda/include -isystem /usr/local/cuda/include/cccl -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/include -isystem /workspace/flashinfer/csrc -isystem /workspace/flashinfer/3rdparty/cutlass/include -isystem /workspace/flashinfer/3rdparty/cutlass/tools/util/include -isystem /workspace/flashinfer/3rdparty/spdlog/include --compiler-options=-fPIC --expt-relaxed-constexpr -static-global-template-stub=false -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -std=c++17 --threads=1 -use_fast_math -DFLASHINFER_ENABLE_F16 -DFLASHINFER_ENABLE_BF16 -DFLASHINFER_ENABLE_FP8_E4M3 -DFLASHINFER_ENABLE_FP8_E5M2 -DNDEBUG -O3 -gencode=arch=compute_100a,code=sm_100a -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -DENABLE_BF16 -c /workspace/flashinfer/csrc/bf16_gemm_cutlass.cu -o bf16_gemm_cutlass/bf16_gemm_cutlass.cuda.o 
-E           /workspace/flashinfer/3rdparty/cutlass/include/cutlass/epilogue/collective/sm100_epilogue_tma_warpspecialized.hpp(870): error: "Tensor" is ambiguous
-E                       Tensor tTR_tAcc_mn = tTR_tAcc(_,_,_,epi_m,epi_n);
-E                       ^
-E                     detected during:
-E                       instantiation of "void cutlass::gemm::kernel::GemmUniversal<ProblemShape_, CollectiveMainloop_, CollectiveEpilogue_, TileSchedulerTag_, std::enable_if_t<std::disjunction_v, void>>::operator()(const cutlass::gemm::kernel::GemmUniversal<ProblemShape_, CollectiveMainloop_, CollectiveEpilogue_, TileSchedulerTag_, std::enable_if_t<std::disjunction_v, void>>::Params &, char *) [with ProblemShape_=cute::tuple<int, int, int, int>, CollectiveMainloop_=cutlass::gemm::collective::CollectiveMma<cutlass::gemm::MainloopSm100TmaUmmaWarpSpecialized<6, 2, 4, cute::tuple<cute::_1, cute::_1, cute::_1>>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity>, CollectiveEpilogue_=cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM75_U16x8_LDSM_T, cute::SM90_TMA_STORE, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM90_U16x8_STSM_T, cute::AutoVectorizingCopyWithAssumedAlignment<128>>, TileSchedulerTag_=void]" at line 123 of /workspace/flashinfer/3rdparty/cutlass/include/cutlass/device_kernel.h
-E                       instantiation of "void cutlass::device_kernel<Operator>(Operator::Params) [with Operator=cutlass::gemm::kernel::GemmUniversal<cute::tuple<int, int, int, int>, cutlass::gemm::collective::CollectiveMma<cutlass::gemm::MainloopSm100TmaUmmaWarpSpecialized<6, 2, 4, cute::tuple<cute::_1, cute::_1, cute::_1>>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity>, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM75_U16x8_LDSM_T, cute::SM90_TMA_STORE, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM90_U16x8_STSM_T, cute::AutoVectorizingCopyWithAssumedAlignment<128>>, void, void>]" at line 340 of /workspace/flashinfer/3rdparty/cutlass/include/cutlass/gemm/device/gemm_universal_adapter.h
-E                       instantiation of "cutlass::Status cutlass::gemm::device::GemmUniversalAdapter<GemmKernel_, std::enable_if_t<cutlass::gemm::detail::IsCutlass3GemmKernel<cutlass::GetUnderlyingKernel_t<GemmKernel_>, void>::value, void>>::initialize(const cutlass::gemm::device::GemmUniversalAdapter<GemmKernel_, std::enable_if_t<cutlass::gemm::detail::IsCutlass3GemmKernel<cutlass::GetUnderlyingKernel_t<GemmKernel_>, void>::value, void>>::Arguments &, void *, cudaStream_t, cutlass::CudaHostAdapter *) [with GemmKernel_=cutlass::gemm::kernel::GemmUniversal<cute::tuple<int, int, int, int>, cutlass::gemm::collective::CollectiveMma<cutlass::gemm::MainloopSm100TmaUmmaWarpSpecialized<6, 2, 4, cute::tuple<cute::_1, cute::_1, cute::_1>>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity>, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM75_U16x8_LDSM_T, cute::SM90_TMA_STORE, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM90_U16x8_STSM_T, cute::AutoVectorizingCopyWithAssumedAlignment<128>>, void, void>]" at line 163 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h
-E                       instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 69 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_cutlass_template.h
-E                       instantiation of "size_t flashinfer::gemm::dispatchGemmClusterShapeSm100<T,arch,CTA_M_,CTA_N_,CTA_K_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128]" at line 85 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_cutlass_template.h
-E                       instantiation of "size_t flashinfer::gemm::dispatchToArch<T>(const __nv_bfloat16 *, const __nv_bfloat16 *, void *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16]" at line 100 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_cutlass_template.h
-E                       instantiation of "void flashinfer::gemm::CutlassBf16GemmRunner<T>::gemm(const __nv_bfloat16 *, const __nv_bfloat16 *, void *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16]" at line 40 of /workspace/flashinfer/csrc/bf16_gemm_cutlass.cu
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(115): error: namespace "cutlass::epilogue::collective" has no member "EpilogueTileDefault"
+E               using EpilogueTileType = cutlass::epilogue::collective::EpilogueTileDefault;
+E                                                                       ^
 E           
-E           /workspace/flashinfer/3rdparty/cutlass/include/cutlass/epilogue/collective/sm100_epilogue_tma_warpspecialized.hpp(916): error: "Tensor" is ambiguous
-E                       Tensor reduction_buffer = make_tensor(raw_pointer_cast(sD_epi(_,_,store_pipe_producer_state.index()).data()),
-E                       ^
-E                     detected during:
-E                       instantiation of "void cutlass::gemm::kernel::GemmUniversal<ProblemShape_, CollectiveMainloop_, CollectiveEpilogue_, TileSchedulerTag_, std::enable_if_t<std::disjunction_v, void>>::operator()(const cutlass::gemm::kernel::GemmUniversal<ProblemShape_, CollectiveMainloop_, CollectiveEpilogue_, TileSchedulerTag_, std::enable_if_t<std::disjunction_v, void>>::Params &, char *) [with ProblemShape_=cute::tuple<int, int, int, int>, CollectiveMainloop_=cutlass::gemm::collective::CollectiveMma<cutlass::gemm::MainloopSm100TmaUmmaWarpSpecialized<6, 2, 4, cute::tuple<cute::_1, cute::_1, cute::_1>>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity>, CollectiveEpilogue_=cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM75_U16x8_LDSM_T, cute::SM90_TMA_STORE, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM90_U16x8_STSM_T, cute::AutoVectorizingCopyWithAssumedAlignment<128>>, TileSchedulerTag_=void]" at line 123 of /workspace/flashinfer/3rdparty/cutlass/include/cutlass/device_kernel.h
-E                       instantiation of "void cutlass::device_kernel<Operator>(Operator::Params) [with Operator=cutlass::gemm::kernel::GemmUniversal<cute::tuple<int, int, int, int>, cutlass::gemm::collective::CollectiveMma<cutlass::gemm::MainloopSm100TmaUmmaWarpSpecialized<6, 2, 4, cute::tuple<cute::_1, cute::_1, cute::_1>>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity>, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM75_U16x8_LDSM_T, cute::SM90_TMA_STORE, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM90_U16x8_STSM_T, cute::AutoVectorizingCopyWithAssumedAlignment<128>>, void, void>]" at line 340 of /workspace/flashinfer/3rdparty/cutlass/include/cutlass/gemm/device/gemm_universal_adapter.h
-E                       instantiation of "cutlass::Status cutlass::gemm::device::GemmUniversalAdapter<GemmKernel_, std::enable_if_t<cutlass::gemm::detail::IsCutlass3GemmKernel<cutlass::GetUnderlyingKernel_t<GemmKernel_>, void>::value, void>>::initialize(const cutlass::gemm::device::GemmUniversalAdapter<GemmKernel_, std::enable_if_t<cutlass::gemm::detail::IsCutlass3GemmKernel<cutlass::GetUnderlyingKernel_t<GemmKernel_>, void>::value, void>>::Arguments &, void *, cudaStream_t, cutlass::CudaHostAdapter *) [with GemmKernel_=cutlass::gemm::kernel::GemmUniversal<cute::tuple<int, int, int, int>, cutlass::gemm::collective::CollectiveMma<cutlass::gemm::MainloopSm100TmaUmmaWarpSpecialized<6, 2, 4, cute::tuple<cute::_1, cute::_1, cute::_1>>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity>, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM75_U16x8_LDSM_T, cute::SM90_TMA_STORE, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM90_U16x8_STSM_T, cute::AutoVectorizingCopyWithAssumedAlignment<128>>, void, void>]" at line 163 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h
-E                       instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 69 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_cutlass_template.h
-E                       instantiation of "size_t flashinfer::gemm::dispatchGemmClusterShapeSm100<T,arch,CTA_M_,CTA_N_,CTA_K_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128]" at line 85 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_cutlass_template.h
-E                       instantiation of "size_t flashinfer::gemm::dispatchToArch<T>(const __nv_bfloat16 *, const __nv_bfloat16 *, void *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16]" at line 100 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_cutlass_template.h
-E                       instantiation of "void flashinfer::gemm::CutlassBf16GemmRunner<T>::gemm(const __nv_bfloat16 *, const __nv_bfloat16 *, void *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16]" at line 40 of /workspace/flashinfer/csrc/bf16_gemm_cutlass.cu
+E           1 error detected in the compilation of "/workspace/flashinfer/csrc/bf16_gemm_cutlass.cu".
+E           [2/4] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output bf16_gemm_cutlass/bf16_gemm_cutlass_half_64_64_128.cuda.o.d -DPy_LIMITED_API=0x03090000 -D_GLIBCXX_USE_CXX11_ABI=1 -isystem /usr/include/python3.11 -isystem /usr/local/cuda/include -isystem /usr/local/cuda/include/cccl -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/include -isystem /workspace/flashinfer/csrc -isystem /workspace/flashinfer/3rdparty/cutlass/include -isystem /workspace/flashinfer/3rdparty/cutlass/tools/util/include -isystem /workspace/flashinfer/3rdparty/spdlog/include --compiler-options=-fPIC --expt-relaxed-constexpr -static-global-template-stub=false -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -std=c++17 --threads=1 -use_fast_math -DFLASHINFER_ENABLE_F16 -DFLASHINFER_ENABLE_BF16 -DFLASHINFER_ENABLE_FP8_E4M3 -DFLASHINFER_ENABLE_FP8_E5M2 -DNDEBUG -O3 -gencode=arch=compute_100a,code=sm_100a -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -DENABLE_BF16 -c /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu -o bf16_gemm_cutlass/bf16_gemm_cutlass_half_64_64_128.cuda.o 
+E           FAILED: [code=2] bf16_gemm_cutlass/bf16_gemm_cutlass_half_64_64_128.cuda.o 
+E           /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output bf16_gemm_cutlass/bf16_gemm_cutlass_half_64_64_128.cuda.o.d -DPy_LIMITED_API=0x03090000 -D_GLIBCXX_USE_CXX11_ABI=1 -isystem /usr/include/python3.11 -isystem /usr/local/cuda/include -isystem /usr/local/cuda/include/cccl -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/include -isystem /workspace/flashinfer/csrc -isystem /workspace/flashinfer/3rdparty/cutlass/include -isystem /workspace/flashinfer/3rdparty/cutlass/tools/util/include -isystem /workspace/flashinfer/3rdparty/spdlog/include --compiler-options=-fPIC --expt-relaxed-constexpr -static-global-template-stub=false -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -std=c++17 --threads=1 -use_fast_math -DFLASHINFER_ENABLE_F16 -DFLASHINFER_ENABLE_BF16 -DFLASHINFER_ENABLE_FP8_E4M3 -DFLASHINFER_ENABLE_FP8_E5M2 -DNDEBUG -O3 -gencode=arch=compute_100a,code=sm_100a -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -DENABLE_BF16 -c /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu -o bf16_gemm_cutlass/bf16_gemm_cutlass_half_64_64_128.cuda.o 
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(115): error: namespace "cutlass::epilogue::collective" has no member "EpilogueTileDefault"
+E               using EpilogueTileType = cutlass::epilogue::collective::EpilogueTileDefault;
+E                                                                       ^
 E           
-E           /workspace/flashinfer/3rdparty/cutlass/include/cutlass/epilogue/collective/sm100_epilogue_tma_warpspecialized.hpp(882): error: no instance of overloaded function "copy" matches the argument list
-E                       argument types are: (cute::TiledCopy<cute::Copy_Atom<cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, float>, cute::Layout<cute::tuple<cute::tuple<cute::_32, cute::_4>, cute::tuple<cute::C<32>, cute::C<16>>>, cute::tuple<cute::tuple<cute::C<0>, cute::C<1>>, cute::tuple<cute::C<64>, cute::_4>>>, cute::tuple<cute::Layout<cute::tuple<cute::_4, cute::C<16>>, cute::tuple<cute::_16, cute::_1>>, cute::Layout<cute::_32, cute::C<1>>>>, <error-type>, cute::Tensor<cute::ArrayEngine<float, 16UL>, cute::Layout<cute::tuple<cute::tuple<cute::tuple<cute::_2, cute::_2, cute::C<4>>, cute::_1>, cute::_1, cute::_1>, cute::tuple<cute::tuple<cute::tuple<cute::_1, cute::_2, cute::_4>, cute::C<0>>, cute::C<0>, cute::C<0>>>>)
-E                         copy(tiled_t2r, tTR_tAcc_mn, tTR_rAcc);
-E                         ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(173): note #3326-D: function template "cute::copy(const cute::AutoCopyAsync &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" does not match because argument #1 does not match parameter
-E             copy(AutoCopyAsync const& cpy,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(189): note #3327-D: candidate function template "cute::copy(const cute::Copy_Atom<CopyArgs...> &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(Copy_Atom<CopyArgs...> const& copy_atom,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(247): note #3327-D: candidate function template "cute::copy(const cute::AutoVectorizingCopyWithAssumedAlignment<MaxVecBits> &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(AutoVectorizingCopyWithAssumedAlignment<MaxVecBits> const&,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(288): note #3327-D: candidate function template "cute::copy(const cute::AutoFilter<CopyOp> &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(AutoFilter<CopyOp> const& copy_op,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(312): note #3322-D: number of parameters of function template "cute::copy(const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" does not match the call
-E             copy(Tensor<SrcEngine, SrcLayout> const& src,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(350): note #3327-D: candidate function template "cute::copy(const cute::Copy_Atom<cute::AutoVectorizingCopyWithAssumedAlignment<MaxVecBits>, Args...> &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(Copy_Atom<AutoVectorizingCopyWithAssumedAlignment<MaxVecBits>, Args...> const&,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(362): note #3327-D: candidate function template "cute::copy(const cute::Copy_Atom<cute::Copy_Traits<cute::AutoVectorizingCopyWithAssumedAlignment<MaxVecBits>>, Args...> &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(Copy_Atom<Copy_Traits<AutoVectorizingCopyWithAssumedAlignment<MaxVecBits>>, Args...> const&,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(375): note #3327-D: candidate function template "cute::copy(const cute::Copy_Traits<cute::SM90_BULK_COPY_AUTO, CT_Args...> &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(Copy_Traits<SM90_BULK_COPY_AUTO, CT_Args...> const& atom,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(408): note #3327-D: candidate function template "cute::copy(const cute::Copy_Atom<cute::Copy_Traits<cute::SM90_BULK_COPY_AUTO, CT_Args...>, CA_Args...> &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(Copy_Atom<Copy_Traits<SM90_BULK_COPY_AUTO, CT_Args...>, CA_Args...> const& atom,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(439): note #3327-D: candidate function template "cute::copy(const cute::TiledCopy<CopyAtom, TV, Tiler> &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(TiledCopy<CopyAtom, TV, Tiler> const& tiled_copy,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(462): note #3327-D: candidate function template "cute::copy(const cute::ThrCopy<TiledCopy, ThrIdx> &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(ThrCopy<TiledCopy, ThrIdx> const& thr_copy,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(489): note #3327-D: candidate function template "cute::copy(const CopyPolicy &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &)" failed deduction
-E             copy(CopyPolicy const& cpy,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(530): note #3322-D: number of parameters of function template "cute::copy(const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &&)" does not match the call
-E             copy(Tensor<SrcEngine, SrcLayout> const& src,
-E             ^
-E           /workspace/flashinfer/3rdparty/cutlass/include/cute/algorithm/copy.hpp(541): note #3327-D: candidate function template "cute::copy(const CopyPolicy &, const cute::Tensor<SrcEngine, SrcLayout> &, cute::Tensor<DstEngine, DstLayout> &&)" failed deduction
-E             copy(CopyPolicy const& copy_policy,
-E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/include/cutlass/epilogue/collective/collective_builder.hpp(71): error: static assertion failed with "Could not build a collective epilogue for given parameters."
+E               static_assert(cutlass::detail::dependent_false<ArchTag>,
+E               ^
 E                     detected during:
-E                       instantiation of "auto cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<StagesC_, StagesD_, FragmentSize_, ReuseSmemC_, DelayTmaStore_>, CtaTileShape_, EpilogueTile_, ElementC_, StrideC_, ElementD_, StrideD_, FusionCallbacks_, CopyOpT2R_, CopyOpG2S_, SmemLayoutAtomC_, CopyOpS2R_, CopyOpS2G_, SmemLayoutAtomD_, CopyOpR2S_, CopyOpR2R_>::store(cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<StagesC_, StagesD_, FragmentSize_, ReuseSmemC_, DelayTmaStore_>, CtaTileShape_, EpilogueTile_, ElementC_, StrideC_, ElementD_, StrideD_, FusionCallbacks_, CopyOpT2R_, CopyOpG2S_, SmemLayoutAtomC_, CopyOpS2R_, CopyOpS2G_, SmemLayoutAtomD_, CopyOpR2S_, CopyOpR2R_>::LoadPipeline, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<StagesC_, StagesD_, FragmentSize_, ReuseSmemC_, DelayTmaStore_>, CtaTileShape_, EpilogueTile_, ElementC_, StrideC_, ElementD_, StrideD_, FusionCallbacks_, CopyOpT2R_, CopyOpG2S_, SmemLayoutAtomC_, CopyOpS2R_, CopyOpS2G_, SmemLayoutAtomD_, CopyOpR2S_, CopyOpR2R_>::LoadPipelineState, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<StagesC_, StagesD_, FragmentSize_, ReuseSmemC_, DelayTmaStore_>, CtaTileShape_, EpilogueTile_, ElementC_, StrideC_, ElementD_, StrideD_, FusionCallbacks_, CopyOpT2R_, CopyOpG2S_, SmemLayoutAtomC_, CopyOpS2R_, CopyOpS2G_, SmemLayoutAtomD_, CopyOpR2S_, CopyOpR2R_>::StorePipeline, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<StagesC_, StagesD_, FragmentSize_, ReuseSmemC_, DelayTmaStore_>, CtaTileShape_, EpilogueTile_, ElementC_, StrideC_, ElementD_, StrideD_, FusionCallbacks_, CopyOpT2R_, CopyOpG2S_, SmemLayoutAtomC_, CopyOpS2R_, CopyOpS2G_, SmemLayoutAtomD_, CopyOpR2S_, CopyOpR2R_>::StorePipelineState, AccumulatorPipeline, AccumulatorPipelineState, ProblemShapeMNKL, CtaTileMNK, CtaCoordMNKL, MmaTileMNK, TiledMma, cute::Tensor<AccEngine, AccLayout>, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<StagesC_, StagesD_, FragmentSize_, ReuseSmemC_, DelayTmaStore_>, CtaTileShape_, EpilogueTile_, ElementC_, StrideC_, ElementD_, StrideD_, FusionCallbacks_, CopyOpT2R_, CopyOpG2S_, SmemLayoutAtomC_, CopyOpS2R_, CopyOpS2G_, SmemLayoutAtomD_, CopyOpR2S_, CopyOpR2R_>::TensorStorage &) [with StagesC_=3, StagesD_=2, FragmentSize_=16, ReuseSmemC_=true, DelayTmaStore_=false, CtaTileShape_=cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, EpilogueTile_=cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, ElementC_=cutlass::bfloat16_t, StrideC_=cute::tuple<cute::C<1>, int64_t, int64_t>, ElementD_=cutlass::bfloat16_t, StrideD_=cute::tuple<cute::C<1>, int64_t, int64_t>, FusionCallbacks_=cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, CopyOpT2R_=cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, CopyOpG2S_=cute::SM90_TMA_LOAD, SmemLayoutAtomC_=cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, CopyOpS2R_=cute::SM75_U16x8_LDSM_T, CopyOpS2G_=cute::SM90_TMA_STORE, SmemLayoutAtomD_=cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, CopyOpR2S_=cute::SM90_U16x8_STSM_T, CopyOpR2R_=cute::AutoVectorizingCopyWithAssumedAlignment<128>, ReuseTmem=false, AccumulatorPipeline=cutlass::PipelineUmmaAsync<4, cute::tuple<cute::_1, cute::_1, cute::_1>>, AccumulatorPipelineState=cutlass::PipelineState<4U>, ProblemShapeMNKL=cute::tuple<int, int, int, int>, CtaTileMNK=cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, CtaCoordMNKL=cute::tuple<int32_t, int32_t, cute::Underscore, int32_t>, MmaTileMNK=cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, TiledMma=cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, AccEngine=cute::ViewEngine<cute::tmem_ptr<float>>, AccLayout=cute::Layout<cute::tuple<cute::tuple<cute::tuple<cute::_16, cute::_4>, cute::C<64>>, cute::_1, cute::_1>, cute::tuple<cute::tuple<cute::tuple<cute::C<65536>, cute::C<2097152>>, cute::_1>, cute::C<0>, cute::C<0>>>]" at line 925 of /workspace/flashinfer/3rdparty/cutlass/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp
-E                       instantiation of "void cutlass::gemm::kernel::GemmUniversal<ProblemShape_, CollectiveMainloop_, CollectiveEpilogue_, TileSchedulerTag_, std::enable_if_t<std::disjunction_v, void>>::operator()(const cutlass::gemm::kernel::GemmUniversal<ProblemShape_, CollectiveMainloop_, CollectiveEpilogue_, TileSchedulerTag_, std::enable_if_t<std::disjunction_v, void>>::Params &, char *) [with ProblemShape_=cute::tuple<int, int, int, int>, CollectiveMainloop_=cutlass::gemm::collective::CollectiveMma<cutlass::gemm::MainloopSm100TmaUmmaWarpSpecialized<6, 2, 4, cute::tuple<cute::_1, cute::_1, cute::_1>>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity>, CollectiveEpilogue_=cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM75_U16x8_LDSM_T, cute::SM90_TMA_STORE, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM90_U16x8_STSM_T, cute::AutoVectorizingCopyWithAssumedAlignment<128>>, TileSchedulerTag_=void]" at line 123 of /workspace/flashinfer/3rdparty/cutlass/include/cutlass/device_kernel.h
-E                       instantiation of "void cutlass::device_kernel<Operator>(Operator::Params) [with Operator=cutlass::gemm::kernel::GemmUniversal<cute::tuple<int, int, int, int>, cutlass::gemm::collective::CollectiveMma<cutlass::gemm::MainloopSm100TmaUmmaWarpSpecialized<6, 2, 4, cute::tuple<cute::_1, cute::_1, cute::_1>>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity>, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM75_U16x8_LDSM_T, cute::SM90_TMA_STORE, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM90_U16x8_STSM_T, cute::AutoVectorizingCopyWithAssumedAlignment<128>>, void, void>]" at line 340 of /workspace/flashinfer/3rdparty/cutlass/include/cutlass/gemm/device/gemm_universal_adapter.h
-E                       instantiation of "cutlass::Status cutlass::gemm::device::GemmUniversalAdapter<GemmKernel_, std::enable_if_t<cutlass::gemm::detail::IsCutlass3GemmKernel<cutlass::GetUnderlyingKernel_t<GemmKernel_>, void>::value, void>>::initialize(const cutlass::gemm::device::GemmUniversalAdapter<GemmKernel_, std::enable_if_t<cutlass::gemm::detail::IsCutlass3GemmKernel<cutlass::GetUnderlyingKernel_t<GemmKernel_>, void>::value, void>>::Arguments &, void *, cudaStream_t, cutlass::CudaHostAdapter *) [with GemmKernel_=cutlass::gemm::kernel::GemmUniversal<cute::tuple<int, int, int, int>, cutlass::gemm::collective::CollectiveMma<cutlass::gemm::MainloopSm100TmaUmmaWarpSpecialized<6, 2, 4, cute::tuple<cute::_1, cute::_1, cute::_1>>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cutlass::bfloat16_t, cute::tuple<int64_t, cute::C<1>, int64_t>, cute::TiledMMA<cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<cutlass::bfloat16_t, cutlass::bfloat16_t, float, 64, 64, cute::UMMA::Major::K, cute::UMMA::Major::K, cute::UMMA::ScaleIn::One, cute::UMMA::ScaleIn::One>>, cute::Layout<cute::tuple<cute::_1, cute::_1, cute::_1>, cute::tuple<cute::C<0>, cute::C<0>, cute::C<0>>>, cute::tuple<cute::Underscore, cute::Underscore, cute::Underscore>>, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::_8, cute::_64>, cute::tuple<cute::_64, cute::_1>>>, void, cute::identity>, cutlass::epilogue::collective::CollectiveEpilogue<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::bfloat16_t, cute::tuple<cute::C<1>, int64_t, int64_t>, cutlass::epilogue::fusion::FusionCallbacks<cutlass::epilogue::Sm100TmaWarpSpecialized<3, 2, 16, true, false>, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, cute::tuple<cute::C<64>, cute::C<64>, cute::C<128>>, cute::tuple<cute::Layout<cute::C<64>, cute::C<1>>, cute::Layout<cute::_32, cute::C<1>>>>, cute::SM100::TMEM::LOAD::SM100_TMEM_LOAD_16dp256b4x, cute::SM90_TMA_LOAD, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM75_U16x8_LDSM_T, cute::SM90_TMA_STORE, cute::ComposedLayout<cute::Swizzle<3, 4, 3>, cute::smem_ptr_flag_bits<16>, cute::Layout<cute::tuple<cute::C<64>, cute::C<8>>, cute::tuple<cute::_1, cute::C<64>>>>, cute::SM90_U16x8_STSM_T, cute::AutoVectorizingCopyWithAssumedAlignment<128>>, void, void>]" at line 163 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h
-E                       instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 69 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_cutlass_template.h
-E                       instantiation of "size_t flashinfer::gemm::dispatchGemmClusterShapeSm100<T,arch,CTA_M_,CTA_N_,CTA_K_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128]" at line 85 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_cutlass_template.h
-E                       instantiation of "size_t flashinfer::gemm::dispatchToArch<T>(const __nv_bfloat16 *, const __nv_bfloat16 *, void *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16]" at line 100 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_cutlass_template.h
-E                       instantiation of "void flashinfer::gemm::CutlassBf16GemmRunner<T>::gemm(const __nv_bfloat16 *, const __nv_bfloat16 *, void *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16]" at line 40 of /workspace/flashinfer/csrc/bf16_gemm_cutlass.cu
+E                       instantiation of class "cutlass::epilogue::collective::CollectiveBuilder<ArchTag, OpClass, TileShape_MNK, ClusterShape_MNK, EpilogueTileType, ElementAccumulator, ElementCompute, ElementC, GmemLayoutTagC, AlignmentC, ElementD, GmemLayoutTagD, AlignmentD, EpilogueScheduleType, FusionOpOrCallbacks, Enable> [with ArchTag=cutlass::arch::Sm100, OpClass=cutlass::arch::OpClassTensorOp, TileShape_MNK=cute::tuple<cute::_64, cute::_64, cute::_128>, ClusterShape_MNK=cute::tuple<cute::_1, cute::_1, cute::_1>, EpilogueTileType=<error-type>, ElementAccumulator=float, ElementCompute=float, ElementC=cutlass::half_t, GmemLayoutTagC=cutlass::layout::ColumnMajor, AlignmentC=8, ElementD=cutlass::half_t, GmemLayoutTagD=cutlass::layout::ColumnMajor, AlignmentD=8, EpilogueScheduleType=cutlass::epilogue::TmaWarpSpecialized1Sm, FusionOpOrCallbacks=cutlass::epilogue::fusion::LinearCombination<cutlass::half_t, float, cutlass::half_t, float, cutlass::FloatRoundStyle::round_to_nearest>, Enable=void]" at line 124 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h
+E                       instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
 E           
-E           3 errors detected in the compilation of "/workspace/flashinfer/csrc/bf16_gemm_cutlass.cu".
-E           [2/4] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output bf16_gemm_cutlass/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cuda.o.d -DPy_LIMITED_API=0x03090000 -D_GLIBCXX_USE_CXX11_ABI=1 -isystem /usr/include/python3.11 -isystem /usr/local/cuda/include -isystem /usr/local/cuda/include/cccl -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/include -isystem /workspace/flashinfer/csrc -isystem /workspace/flashinfer/3rdparty/cutlass/include -isystem /workspace/flashinfer/3rdparty/cutlass/tools/util/include -isystem /workspace/flashinfer/3rdparty/spdlog/include --compiler-options=-fPIC --expt-relaxed-constexpr -static-global-template-stub=false -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -std=c++17 --threads=1 -use_fast_math -DFLASHINFER_ENABLE_F16 -DFLASHINFER_ENABLE_BF16 -DFLASHINFER_ENABLE_FP8_E4M3 -DFLASHINFER_ENABLE_FP8_E5M2 -DNDEBUG -O3 -gencode=arch=compute_100a,code=sm_100a -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -DENABLE_BF16 -c /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu -o bf16_gemm_cutlass/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cuda.o 
-E           [3/4] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output bf16_gemm_cutlass/bf16_gemm_cutlass_half_64_64_128.cuda.o.d -DPy_LIMITED_API=0x03090000 -D_GLIBCXX_USE_CXX11_ABI=1 -isystem /usr/include/python3.11 -isystem /usr/local/cuda/include -isystem /usr/local/cuda/include/cccl -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/include -isystem /workspace/flashinfer/csrc -isystem /workspace/flashinfer/3rdparty/cutlass/include -isystem /workspace/flashinfer/3rdparty/cutlass/tools/util/include -isystem /workspace/flashinfer/3rdparty/spdlog/include --compiler-options=-fPIC --expt-relaxed-constexpr -static-global-template-stub=false -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -std=c++17 --threads=1 -use_fast_math -DFLASHINFER_ENABLE_F16 -DFLASHINFER_ENABLE_BF16 -DFLASHINFER_ENABLE_FP8_E4M3 -DFLASHINFER_ENABLE_FP8_E5M2 -DNDEBUG -O3 -gencode=arch=compute_100a,code=sm_100a -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -DENABLE_BF16 -c /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu -o bf16_gemm_cutlass/bf16_gemm_cutlass_half_64_64_128.cuda.o 
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(124): error: class "cutlass::epilogue::collective::CollectiveBuilder<cutlass::arch::Sm100, cutlass::arch::OpClassTensorOp, cute::tuple<cute::_64, cute::_64, cute::_128>, cute::tuple<cute::_1, cute::_1, cute::_1>, <error-type>, float, float, cutlass::half_t, cutlass::layout::ColumnMajor, 8, cutlass::half_t, cutlass::layout::ColumnMajor, 8, cutlass::epilogue::TmaWarpSpecialized1Sm, cutlass::epilogue::fusion::LinearCombination<cutlass::half_t, float, cutlass::half_t, float, cutlass::FloatRoundStyle::round_to_nearest>, void>" has no member "CollectiveOp"
+E                   EpilogueSchedule, FusionOp>::CollectiveOp;
+E                                                ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(130): error: name followed by "::" must be a class or namespace name
+E                       sizeof(typename CollectiveEpilogue::SharedStorage))>,
+E                                       ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(130): error: a class or namespace qualified name is required
+E                       sizeof(typename CollectiveEpilogue::SharedStorage))>,
+E                                       ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(130): error: expected a ")"
+E                       sizeof(typename CollectiveEpilogue::SharedStorage))>,
+E                                                         ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/3rdparty/cutlass/include/cutlass/gemm/collective/collective_builder_decl.hpp(94): error: static assertion failed with "Could not build a collective for given parameters."
+E               static_assert(sizeof(ElementA) == 0, "Could not build a collective for given parameters.");
+E               ^
+E                     detected during:
+E                       instantiation of class "cutlass::gemm::collective::CollectiveBuilder<ArchTag, OpClass, ElementA, GmemLayoutA, AlignmentA, ElementB, GmemLayoutB, AlignmentB, ElementAccumulator, TileShape_MNK, ClusterShape_MNK, StageCountType, KernelScheduleType, Enable> [with ArchTag=cutlass::arch::Sm100, OpClass=cutlass::arch::OpClassTensorOp, ElementA=cutlass::bfloat16_t, GmemLayoutA=cutlass::layout::RowMajor, AlignmentA=8, ElementB=cutlass::bfloat16_t, GmemLayoutB=cutlass::layout::ColumnMajor, AlignmentB=8, ElementAccumulator=float, TileShape_MNK=cute::tuple<cute::_64, cute::_64, cute::_128>, ClusterShape_MNK=cute::tuple<cute::_1, cute::_1, cute::_1>, StageCountType=cutlass::gemm::collective::StageCountAutoCarveout<<error-constant>>, KernelScheduleType=cutlass::gemm::KernelTmaWarpSpecialized1SmSm100, Enable=void]" at line 131 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h
+E                       instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(131): error: class "cutlass::gemm::collective::CollectiveBuilder<cutlass::arch::Sm100, cutlass::arch::OpClassTensorOp, cutlass::bfloat16_t, cutlass::layout::RowMajor, 8, cutlass::bfloat16_t, cutlass::layout::ColumnMajor, 8, float, cute::tuple<cute::_64, cute::_64, cute::_128>, cute::tuple<cute::_1, cute::_1, cute::_1>, cutlass::gemm::collective::StageCountAutoCarveout<<error-constant>>, cutlass::gemm::KernelTmaWarpSpecialized1SmSm100, void>" has no member "CollectiveOp"
+E                   MainloopSchedule>::CollectiveOp;
+E                                      ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(139): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               using StrideA = typename Gemm::GemmKernel::StrideA;
+E                                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(140): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               using StrideB = typename Gemm::GemmKernel::StrideB;
+E                                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(141): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               using StrideC = typename Gemm::GemmKernel::StrideC;
+E                                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(142): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               using StrideD = typename Gemm::GemmKernel::StrideD;
+E                                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(144): error: no instance of overloaded function "cutlass::make_cute_packed_stride" matches the argument list
+E                       argument types are: (<error-type>, cute::tuple<int32_t, int32_t, int32_t>)
+E               auto stride_A = cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(m, k, b));
+E                               ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(552): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(531): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(512): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(486): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(465): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(446): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(423): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(406): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(389): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(357): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(328): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(302): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(275): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(255): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(237): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(214): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(196): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(179): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT>, cute::C<1>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(149): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, cute::C<0>>, cute::array<int32_t, RankT_>, cute::array<IntT, RankT_>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(129): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, StrideIntT, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, StrideIntT, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(118): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<StrideIntT, cute::C<1>, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<StrideIntT, cute::Int<1>, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(96): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(78): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(63): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(52): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(145): error: no instance of overloaded function "cutlass::make_cute_packed_stride" matches the argument list
+E                       argument types are: (<error-type>, cute::tuple<int32_t, int32_t, int32_t>)
+E               auto stride_B = cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(n, k, b));
+E                               ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(552): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(531): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(512): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(486): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(465): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(446): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(423): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(406): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(389): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(357): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(328): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(302): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(275): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(255): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(237): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(214): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(196): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(179): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT>, cute::C<1>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(149): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, cute::C<0>>, cute::array<int32_t, RankT_>, cute::array<IntT, RankT_>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(129): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, StrideIntT, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, StrideIntT, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(118): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<StrideIntT, cute::C<1>, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<StrideIntT, cute::Int<1>, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(96): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(78): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(63): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(52): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(146): error: no instance of overloaded function "cutlass::make_cute_packed_stride" matches the argument list
+E                       argument types are: (<error-type>, cute::tuple<int32_t, int32_t, int32_t>)
+E               auto stride_C = cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(m, n, b));
+E                               ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(552): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(531): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(512): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(486): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(465): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(446): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(423): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(406): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(389): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(357): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(328): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(302): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(275): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(255): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(237): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(214): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(196): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(179): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT>, cute::C<1>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(149): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, cute::C<0>>, cute::array<int32_t, RankT_>, cute::array<IntT, RankT_>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(129): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, StrideIntT, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, StrideIntT, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(118): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<StrideIntT, cute::C<1>, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<StrideIntT, cute::Int<1>, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(96): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(78): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(63): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(52): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(147): error: no instance of overloaded function "cutlass::make_cute_packed_stride" matches the argument list
+E                       argument types are: (<error-type>, cute::tuple<int32_t, int32_t, int32_t>)
+E               auto stride_D = cutlass::make_cute_packed_stride(StrideD{}, cute::make_shape(m, n, b));
+E                               ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(552): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(531): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(512): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(486): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(465): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(446): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(423): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(406): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(389): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(357): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(328): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(302): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(275): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(255): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(237): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(214): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(196): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(179): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT>, cute::C<1>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(149): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, cute::C<0>>, cute::array<int32_t, RankT_>, cute::array<IntT, RankT_>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(129): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, StrideIntT, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, StrideIntT, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(118): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<StrideIntT, cute::C<1>, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<StrideIntT, cute::Int<1>, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(96): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(78): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(63): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(52): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(149): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               typename Gemm::Arguments arguments{
+E                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(160): error: incomplete type "Gemm" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               Gemm gemm;
+E                    ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(162): error: identifier "cutlassGetStatusString" is undefined
+E               do { auto status = gemm.can_implement(arguments); if (status != cutlass::Status::kSuccess) { std::ostringstream err_msg; err_msg << "cutlass " << "gemm.can_implement(arguments)" << " failed: " << cutlassGetStatusString(status); throw flashinfer::Error(__FUNCTION__, "/workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h", 162, err_msg.str()); } } while (0);
+E                                                                                                                                                                                                                   ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=half, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu
+E           
+E           19 errors detected in the compilation of "/root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass_half_64_64_128.cu".
+E           [3/4] /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output bf16_gemm_cutlass/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cuda.o.d -DPy_LIMITED_API=0x03090000 -D_GLIBCXX_USE_CXX11_ABI=1 -isystem /usr/include/python3.11 -isystem /usr/local/cuda/include -isystem /usr/local/cuda/include/cccl -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/include -isystem /workspace/flashinfer/csrc -isystem /workspace/flashinfer/3rdparty/cutlass/include -isystem /workspace/flashinfer/3rdparty/cutlass/tools/util/include -isystem /workspace/flashinfer/3rdparty/spdlog/include --compiler-options=-fPIC --expt-relaxed-constexpr -static-global-template-stub=false -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -std=c++17 --threads=1 -use_fast_math -DFLASHINFER_ENABLE_F16 -DFLASHINFER_ENABLE_BF16 -DFLASHINFER_ENABLE_FP8_E4M3 -DFLASHINFER_ENABLE_FP8_E5M2 -DNDEBUG -O3 -gencode=arch=compute_100a,code=sm_100a -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -DENABLE_BF16 -c /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu -o bf16_gemm_cutlass/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cuda.o 
+E           FAILED: [code=2] bf16_gemm_cutlass/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cuda.o 
+E           /usr/local/cuda/bin/nvcc --generate-dependencies-with-compile --dependency-output bf16_gemm_cutlass/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cuda.o.d -DPy_LIMITED_API=0x03090000 -D_GLIBCXX_USE_CXX11_ABI=1 -isystem /usr/include/python3.11 -isystem /usr/local/cuda/include -isystem /usr/local/cuda/include/cccl -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/.venv/lib/python3.11/site-packages/tvm_ffi/include -isystem /workspace/flashinfer/include -isystem /workspace/flashinfer/csrc -isystem /workspace/flashinfer/3rdparty/cutlass/include -isystem /workspace/flashinfer/3rdparty/cutlass/tools/util/include -isystem /workspace/flashinfer/3rdparty/spdlog/include --compiler-options=-fPIC --expt-relaxed-constexpr -static-global-template-stub=false -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -std=c++17 --threads=1 -use_fast_math -DFLASHINFER_ENABLE_F16 -DFLASHINFER_ENABLE_BF16 -DFLASHINFER_ENABLE_FP8_E4M3 -DFLASHINFER_ENABLE_FP8_E5M2 -DNDEBUG -O3 -gencode=arch=compute_100a,code=sm_100a -DFLASHINFER_ENABLE_FP8_E8M0 -DFLASHINFER_ENABLE_FP4_E2M1 -DENABLE_BF16 -c /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu -o bf16_gemm_cutlass/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cuda.o 
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(115): error: namespace "cutlass::epilogue::collective" has no member "EpilogueTileDefault"
+E               using EpilogueTileType = cutlass::epilogue::collective::EpilogueTileDefault;
+E                                                                       ^
+E           
+E           /workspace/flashinfer/3rdparty/cutlass/include/cutlass/epilogue/collective/collective_builder.hpp(71): error: static assertion failed with "Could not build a collective epilogue for given parameters."
+E               static_assert(cutlass::detail::dependent_false<ArchTag>,
+E               ^
+E                     detected during:
+E                       instantiation of class "cutlass::epilogue::collective::CollectiveBuilder<ArchTag, OpClass, TileShape_MNK, ClusterShape_MNK, EpilogueTileType, ElementAccumulator, ElementCompute, ElementC, GmemLayoutTagC, AlignmentC, ElementD, GmemLayoutTagD, AlignmentD, EpilogueScheduleType, FusionOpOrCallbacks, Enable> [with ArchTag=cutlass::arch::Sm100, OpClass=cutlass::arch::OpClassTensorOp, TileShape_MNK=cute::tuple<cute::_64, cute::_64, cute::_128>, ClusterShape_MNK=cute::tuple<cute::_1, cute::_1, cute::_1>, EpilogueTileType=<error-type>, ElementAccumulator=float, ElementCompute=float, ElementC=cutlass::bfloat16_t, GmemLayoutTagC=cutlass::layout::ColumnMajor, AlignmentC=8, ElementD=cutlass::bfloat16_t, GmemLayoutTagD=cutlass::layout::ColumnMajor, AlignmentD=8, EpilogueScheduleType=cutlass::epilogue::TmaWarpSpecialized1Sm, FusionOpOrCallbacks=cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, Enable=void]" at line 124 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h
+E                       instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(124): error: class "cutlass::epilogue::collective::CollectiveBuilder<cutlass::arch::Sm100, cutlass::arch::OpClassTensorOp, cute::tuple<cute::_64, cute::_64, cute::_128>, cute::tuple<cute::_1, cute::_1, cute::_1>, <error-type>, float, float, cutlass::bfloat16_t, cutlass::layout::ColumnMajor, 8, cutlass::bfloat16_t, cutlass::layout::ColumnMajor, 8, cutlass::epilogue::TmaWarpSpecialized1Sm, cutlass::epilogue::fusion::LinearCombination<cutlass::bfloat16_t, float, cutlass::bfloat16_t, float, cutlass::FloatRoundStyle::round_to_nearest>, void>" has no member "CollectiveOp"
+E                   EpilogueSchedule, FusionOp>::CollectiveOp;
+E                                                ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(130): error: name followed by "::" must be a class or namespace name
+E                       sizeof(typename CollectiveEpilogue::SharedStorage))>,
+E                                       ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(130): error: a class or namespace qualified name is required
+E                       sizeof(typename CollectiveEpilogue::SharedStorage))>,
+E                                       ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(130): error: expected a ")"
+E                       sizeof(typename CollectiveEpilogue::SharedStorage))>,
+E                                                         ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/3rdparty/cutlass/include/cutlass/gemm/collective/collective_builder_decl.hpp(94): error: static assertion failed with "Could not build a collective for given parameters."
+E               static_assert(sizeof(ElementA) == 0, "Could not build a collective for given parameters.");
+E               ^
+E                     detected during:
+E                       instantiation of class "cutlass::gemm::collective::CollectiveBuilder<ArchTag, OpClass, ElementA, GmemLayoutA, AlignmentA, ElementB, GmemLayoutB, AlignmentB, ElementAccumulator, TileShape_MNK, ClusterShape_MNK, StageCountType, KernelScheduleType, Enable> [with ArchTag=cutlass::arch::Sm100, OpClass=cutlass::arch::OpClassTensorOp, ElementA=cutlass::bfloat16_t, GmemLayoutA=cutlass::layout::RowMajor, AlignmentA=8, ElementB=cutlass::bfloat16_t, GmemLayoutB=cutlass::layout::ColumnMajor, AlignmentB=8, ElementAccumulator=float, TileShape_MNK=cute::tuple<cute::_64, cute::_64, cute::_128>, ClusterShape_MNK=cute::tuple<cute::_1, cute::_1, cute::_1>, StageCountType=cutlass::gemm::collective::StageCountAutoCarveout<<error-constant>>, KernelScheduleType=cutlass::gemm::KernelTmaWarpSpecialized1SmSm100, Enable=void]" at line 131 of /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h
+E                       instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(131): error: class "cutlass::gemm::collective::CollectiveBuilder<cutlass::arch::Sm100, cutlass::arch::OpClassTensorOp, cutlass::bfloat16_t, cutlass::layout::RowMajor, 8, cutlass::bfloat16_t, cutlass::layout::ColumnMajor, 8, float, cute::tuple<cute::_64, cute::_64, cute::_128>, cute::tuple<cute::_1, cute::_1, cute::_1>, cutlass::gemm::collective::StageCountAutoCarveout<<error-constant>>, cutlass::gemm::KernelTmaWarpSpecialized1SmSm100, void>" has no member "CollectiveOp"
+E                   MainloopSchedule>::CollectiveOp;
+E                                      ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(139): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               using StrideA = typename Gemm::GemmKernel::StrideA;
+E                                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(140): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               using StrideB = typename Gemm::GemmKernel::StrideB;
+E                                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(141): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               using StrideC = typename Gemm::GemmKernel::StrideC;
+E                                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(142): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               using StrideD = typename Gemm::GemmKernel::StrideD;
+E                                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(144): error: no instance of overloaded function "cutlass::make_cute_packed_stride" matches the argument list
+E                       argument types are: (<error-type>, cute::tuple<int32_t, int32_t, int32_t>)
+E               auto stride_A = cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(m, k, b));
+E                               ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(552): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(531): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(512): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(486): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(465): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(446): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(423): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(406): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(389): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(357): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(328): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(302): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(275): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(255): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(237): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(214): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(196): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(179): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT>, cute::C<1>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(149): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, cute::C<0>>, cute::array<int32_t, RankT_>, cute::array<IntT, RankT_>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(129): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, StrideIntT, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, StrideIntT, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(118): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<StrideIntT, cute::C<1>, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<StrideIntT, cute::Int<1>, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(96): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(78): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(63): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(52): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(145): error: no instance of overloaded function "cutlass::make_cute_packed_stride" matches the argument list
+E                       argument types are: (<error-type>, cute::tuple<int32_t, int32_t, int32_t>)
+E               auto stride_B = cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(n, k, b));
+E                               ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(552): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(531): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(512): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(486): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(465): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(446): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(423): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(406): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(389): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(357): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(328): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(302): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(275): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(255): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(237): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(214): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(196): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(179): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT>, cute::C<1>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(149): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, cute::C<0>>, cute::array<int32_t, RankT_>, cute::array<IntT, RankT_>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(129): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, StrideIntT, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, StrideIntT, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(118): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<StrideIntT, cute::C<1>, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<StrideIntT, cute::Int<1>, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(96): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(78): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(63): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(52): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(146): error: no instance of overloaded function "cutlass::make_cute_packed_stride" matches the argument list
+E                       argument types are: (<error-type>, cute::tuple<int32_t, int32_t, int32_t>)
+E               auto stride_C = cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(m, n, b));
+E                               ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(552): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(531): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(512): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(486): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(465): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(446): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(423): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(406): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(389): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(357): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(328): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(302): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(275): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(255): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(237): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(214): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(196): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(179): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT>, cute::C<1>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(149): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, cute::C<0>>, cute::array<int32_t, RankT_>, cute::array<IntT, RankT_>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(129): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, StrideIntT, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, StrideIntT, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(118): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<StrideIntT, cute::C<1>, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<StrideIntT, cute::Int<1>, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(96): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(78): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(63): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(52): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(147): error: no instance of overloaded function "cutlass::make_cute_packed_stride" matches the argument list
+E                       argument types are: (<error-type>, cute::tuple<int32_t, int32_t, int32_t>)
+E               auto stride_D = cutlass::make_cute_packed_stride(StrideD{}, cute::make_shape(m, n, b));
+E                               ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(552): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(531): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(512): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<cute::C<1>, IntT>, IntT, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(486): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 5UL>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(465): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>, cute::C<0>>, cute::array<int32_t, 4UL>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(446): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>, cute::C<0>>, cute::array<int32_t, 3UL>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(423): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(406): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(389): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(357): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(328): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(302): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, cute::Stride<IntT, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(275): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT, IntT>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(255): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT, IntT>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(237): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::Stride<cute::C<1>, IntT>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(214): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 5UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(196): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT, IntT>, cute::C<1>>, cute::array<IntT, 4UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(179): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<cute::Stride<IntT, IntT>, cute::C<1>>, cute::array<IntT, 3UL>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(149): note #3322-D: number of parameters of function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, cute::C<0>>, cute::array<int32_t, RankT_>, cute::array<IntT, RankT_>, cutlass::conv::Operator)" does not match the call
+E             make_cute_packed_stride(
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(129): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, StrideIntT, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, StrideIntT, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(118): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<StrideIntT, cute::C<1>, cute::C<0>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<StrideIntT, cute::Int<1>, cute::Int<0>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(96): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(78): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>, int64_t>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>, int64_t> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(63): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<cute::C<1>, IntT>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<cute::Int<1>, IntT> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E           /workspace/flashinfer/3rdparty/cutlass/tools/util/include/cutlass/util/packed_stride.hpp(52): note #3327-D: candidate function template "cutlass::make_cute_packed_stride(cute::Stride<IntT, cute::C<1>>, cute::tuple<int32_t, int32_t, int32_t>)" failed deduction
+E             make_cute_packed_stride(cute::Stride<IntT, cute::Int<1>> s, cute::Shape<int,int,int> shape_MKL) {
+E             ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(149): error: incomplete type "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::Shape<int32_t, int32_t, int32_t, int>, <error-type>, <error-type>, void, void>, void>" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               typename Gemm::Arguments arguments{
+E                        ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(160): error: incomplete type "Gemm" (aka "cutlass::gemm::device::GemmUniversalAdapter<cutlass::gemm::kernel::GemmUniversal<cute::tuple<signed int, signed int, signed int, int>, <error-type>, <error-type>, void, void>, void>") is not allowed
+E               Gemm gemm;
+E                    ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           /workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h(162): error: identifier "cutlassGetStatusString" is undefined
+E               do { auto status = gemm.can_implement(arguments); if (status != cutlass::Status::kSuccess) { std::ostringstream err_msg; err_msg << "cutlass " << "gemm.can_implement(arguments)" << " failed: " << cutlassGetStatusString(status); throw flashinfer::Error(__FUNCTION__, "/workspace/flashinfer/include/flashinfer/gemm/bf16_gemm_template_sm100.h", 162, err_msg.str()); } } while (0);
+E                                                                                                                                                                                                                   ^
+E                     detected during instantiation of "size_t flashinfer::gemm::genericBf16GemmKernelLauncherSm100<T,arch,CTA_M_,CTA_N_,CTA_K_,ClusterShape_,XSM_>(const __nv_bfloat16 *, const __nv_bfloat16 *, T *, int, int, int, int, flashinfer::gemm::CutlassGemmConfig, char *, size_t, cudaStream_t) [with T=__nv_bfloat16, arch=cutlass::arch::Sm100, CTA_M_=64, CTA_N_=64, CTA_K_=128, ClusterShape_=cute::tuple<cute::_1, cute::_1, cute::_1>, XSM_=flashinfer::gemm::_1SM]" at line 24 of /root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu
+E           
+E           19 errors detected in the compilation of "/root/.cache/flashinfer/0.5.2/100a/generated/gen_gemm_sm100_cutlass_bf16/bf16_gemm_cutlass___nv_bfloat16_64_64_128.cu".
 E           ninja: build stopped: subcommand failed.
 
 flashinfer/jit/cpp_ext.py:299: RuntimeError
 ------------------------------------------------------ Captured stderr call -------------------------------------------------------
-2025-11-09 19:55:11,755 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
-2025-11-09 19:55:38,091 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+2025-11-09 19:58:36,081 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+2025-11-09 19:58:46,363 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
 ===================================================== short test summary info =====================================================
 FAILED tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-64-64-16] - RuntimeError: Ninja build failed. Ninja output:
-======================================================= 1 failed in 26.99s ========================================================
+======================================================= 1 failed in 10.94s ========================================================
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# 
