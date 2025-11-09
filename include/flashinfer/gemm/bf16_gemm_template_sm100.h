@@ -16,7 +16,6 @@
 #ifndef FLASHINFER_BF16_GEMM_TEMPLATE_SM100_H_
 #define FLASHINFER_BF16_GEMM_TEMPLATE_SM100_H_
 
-#include "fp8_gemm_cutlass_template.h"
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
@@ -44,11 +43,12 @@
 namespace flashinfer {
 namespace gemm {
 
+struct _1SM {};
+
+struct _2SM {};
+
 template <typename>
 struct SMTypeAdapter {};
-
-struct _1SM;
-struct _2SM;
 
 template <>
 struct SMTypeAdapter<_1SM> {

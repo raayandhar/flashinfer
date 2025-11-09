@@ -64,23 +64,23 @@ size_t dispatchGemmClusterShapeSm100(__nv_bfloat16 const* A, __nv_bfloat16 const
   switch (gemmConfig.cluster_shape) {
     case ClusterShape::ClusterShape_1x1x1:
       return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
-                                                Shape<_1, _1, _1>, Bf16OneSm>(
+                                                Shape<_1, _1, _1>, _1SM>(
           A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
     case ClusterShape::ClusterShape_1x2x1:
       return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
-                                                Shape<_1, _2, _1>, Bf16OneSm>(
+                                                Shape<_1, _2, _1>, _1SM>(
           A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
     case ClusterShape::ClusterShape_1x4x1:
       return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
-                                                Shape<_1, _4, _1>, Bf16OneSm>(
+                                                Shape<_1, _4, _1>, _1SM>(
           A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
     case ClusterShape::ClusterShape_2x1x1:
       return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
-                                                Shape<_2, _1, _1>, Bf16TwoSm>(
+                                                Shape<_2, _1, _1>, _2SM>(
           A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
     case ClusterShape::ClusterShape_2x2x1:
       return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
-                                                Shape<_2, _2, _1>, Bf16TwoSm>(
+                                                Shape<_2, _2, _1>, _2SM>(
           A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
     default:
       throw std::runtime_error("invalid config for bf16 gemm");
