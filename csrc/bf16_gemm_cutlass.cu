@@ -16,10 +16,13 @@
 
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
+#include <cuda_runtime_api.h>
 
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <stdexcept>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -39,6 +42,21 @@ using flashinfer::gemm::MainloopScheduleType;
 
 namespace flashinfer {
 namespace gemm {
+namespace {
+__device__ __constant__ float kCutlassBf16UnitScalar = 1.0f;
+}  // namespace
+
+float const* get_bf16_unit_scalar_device_ptr() {
+  void* symbol_addr = nullptr;
+  cudaError_t status = cudaGetSymbolAddress(&symbol_addr, kCutlassBf16UnitScalar);
+  if (status != cudaSuccess) {
+    throw std::runtime_error(
+        std::string("[Bf16 Gemm Runner] failed to locate device scalar: ") +
+        cudaGetErrorString(status));
+  }
+  return static_cast<float const*>(symbol_addr);
+}
+
 template class CutlassBf16GemmRunner<__nv_bfloat16>;
 template class CutlassBf16GemmRunner<half>;
 }  // namespace gemm

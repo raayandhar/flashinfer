@@ -43,6 +43,9 @@
 namespace flashinfer {
 namespace gemm {
 
+// Returns a device pointer to a constant 1.0f value used by the CUTLASS epilogue.
+float const* get_bf16_unit_scalar_device_ptr();
+
 struct _1SM {};
 
 struct _2SM {};
@@ -157,9 +160,10 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
       {{}, nullptr, stride_C, reinterpret_cast<ElementOutput*>(D), stride_D}};
 
   // Set the scalar to 1.0 for identity multiplication (just performs type conversion)
-  ElementCompute scale_value = 1.0f;
+  auto scale_value_device_ptr =
+      reinterpret_cast<ElementCompute const*>(get_bf16_unit_scalar_device_ptr());
   arguments.epilogue.thread = {
-      {{0.F}, {&scale_value}},  // scalar broadcast value (1.0)
+      {{0.F}, {scale_value_device_ptr}},  // scalar broadcast value (1.0) stored on device
       {},                        // Sm90AccFetch
       {}                         // multiplies operation
   };

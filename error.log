@@ -1,34 +1,31 @@
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# git fetch origin && git pull && python scripts/clear_flashinfer_cache.py 
-remote: Enumerating objects: 23, done.
-remote: Counting objects: 100% (23/23), done.
-remote: Compressing objects: 100% (7/7), done.
-remote: Total 12 (delta 10), reused 6 (delta 4), pack-reused 0 (from 0)
-Unpacking objects: 100% (12/12), 1.68 KiB | 16.00 KiB/s, done.
+remote: Enumerating objects: 9, done.
+remote: Counting objects: 100% (9/9), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 5 (delta 4), reused 3 (delta 2), pack-reused 0 (from 0)
+Unpacking objects: 100% (5/5), 1.25 KiB | 28.00 KiB/s, done.
 From https://github.com/raayandhar/flashinfer
-   704081ba..b797e988  bf16_cutlass_gemm -> origin/bf16_cutlass_gemm
-Updating 704081ba..b797e988
+   b797e988..fbed563d  bf16_cutlass_gemm -> origin/bf16_cutlass_gemm
+Updating b797e988..fbed563d
 Fast-forward
- csrc/bf16_gemm_cutlass.cu                            | 31 ++++++++++++++++++++++++++++++-
- error.log                                            | 56 ++++++++++++++++++--------------------------------------
- flashinfer/gemm.py                                   |  2 +-
- include/flashinfer/gemm/bf16_gemm_cutlass_template.h |  2 +-
- include/flashinfer/gemm/bf16_gemm_template_sm100.h   |  2 +-
- 5 files changed, 51 insertions(+), 42 deletions(-)
+ error.log          | 41 ++++++++++++++++++++++++++++++++++-------
+ flashinfer/gemm.py |  2 +-
+ 2 files changed, 35 insertions(+), 8 deletions(-)
 [removed] /root/.cache/flashinfer
 [skip] flashinfer-jit-cache (missing)
 [skip] flashinfer-cubin (missing)
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# CUDA_LAUNCH_BLOCKING=1 pytest tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] -v
-======================================================= test session starts =======================================================
+======================================================== test session starts =========================================================
 platform linux -- Python 3.11.11, pytest-9.0.0, pluggy-1.6.0 -- /workspace/flashinfer/.venv/bin/python
 cachedir: .pytest_cache
 rootdir: /workspace/flashinfer
 configfile: pytest.ini
-collected 1 item                                                                                                                  
+collected 1 item                                                                                                                     
 
-tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] FAILED                                                     [100%]
+tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] FAILED                                                        [100%]
 
-============================================================ FAILURES =============================================================
-______________________________________________ test_mm_bf16[res_dtype0-8192-2560-1] _______________________________________________
+============================================================== FAILURES ==============================================================
+________________________________________________ test_mm_bf16[res_dtype0-8192-2560-1] ________________________________________________
 
 m = 1, n = 2560, k = 8192, res_dtype = torch.bfloat16
 
@@ -56,7 +53,7 @@ m = 1, n = 2560, k = 8192, res_dtype = torch.bfloat16
 >           mm_bf16(a, b, out=out, out_dtype=res_dtype)
 
 tests/gemm/test_mm_bf16.py:30: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 flashinfer/gemm.py:254: in mm_bf16
     bf16_gemm_sm100(a, b, out, workspace_buffer)
 flashinfer/gemm.py:653: in bf16_gemm_sm100
@@ -68,20 +65,94 @@ flashinfer/autotuner.py:217: in __call__
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 flashinfer/gemm.py:534: in forward
     module.bf16_gemm(
-python/tvm_ffi/cython/function.pxi:814: in core.Function.__call__
-    ???
-<unknown>:0: in __tvm_ffi_bf16_gemm
-    ???
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
->   TVM_FFI_ICHECK(is_col_major_matrix_view(mat2))
-E   RuntimeError: Check failed: (is_col_major_matrix_view(mat2)) is false: mat2 last two dimensions must be laid out in column-major order; pass b.transpose(-2, -1).
+>   ???
+E   RuntimeError: [Bf16 Gemm Runner] failed to initialize
 
-csrc/bf16_gemm_cutlass.cu:121: RuntimeError
------------------------------------------------------- Captured stderr call -------------------------------------------------------
-2025-11-09 20:45:44,742 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
-2025-11-09 20:46:15,183 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
-===================================================== short test summary info =====================================================
-FAILED tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] - RuntimeError: Check failed: (is_col_major_matrix_view(mat2)) is false: mat2 last two dimensions must be laid out in column-maj...
-======================================================= 1 failed in 31.08s ========================================================
+python/tvm_ffi/cython/function.pxi:814: RuntimeError
+-------------------------------------------------------- Captured stderr call --------------------------------------------------------
+2025-11-09 20:47:51,790 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+TMA Desc Addr:   0x7ffdb0fc8000
+format         9
+dim            3
+gmem_address   0x725d6a000000
+globalDim      (8192,2560,1,1,1)
+globalStrides  (2,16384,0,0,0)
+boxDim         (64,64,1,1,1)
+elementStrides (1,1,1,1,1)
+interleave     0
+swizzle        3
+l2Promotion    2
+oobFill        0
+Error: Failed to initialize the TMA descriptor 700
+TMA Desc Addr:   0x7ffdb0fc8000
+format         9
+dim            3
+gmem_address   0x725d8d005400
+globalDim      (8192,1,1,1,1)
+globalStrides  (2,16384,0,0,0)
+boxDim         (64,64,1,1,1)
+elementStrides (1,1,1,1,1)
+interleave     0
+swizzle        3
+l2Promotion    2
+oobFill        0
+Error: Failed to initialize the TMA descriptor 700
+TMA Desc Addr:   0x7ffdb0fc8000
+format         9
+dim            3
+gmem_address   0x725d6a000000
+globalDim      (8192,2560,1,1,1)
+globalStrides  (2,16384,0,0,0)
+boxDim         (64,64,1,1,1)
+elementStrides (1,1,1,1,1)
+interleave     0
+swizzle        3
+l2Promotion    2
+oobFill        0
+Error: Failed to initialize the TMA descriptor 700
+TMA Desc Addr:   0x7ffdb0fc8000
+format         9
+dim            3
+gmem_address   0x725d8d005400
+globalDim      (8192,1,1,1,1)
+globalStrides  (2,16384,0,0,0)
+boxDim         (64,64,1,1,1)
+elementStrides (1,1,1,1,1)
+interleave     0
+swizzle        3
+l2Promotion    2
+oobFill        0
+Error: Failed to initialize the TMA descriptor 700
+TMA Desc Addr:   0x7ffdb0fc8000
+format         9
+dim            3
+gmem_address   0
+globalDim      (2560,1,1,1,1)
+globalStrides  (2,5120,0,0,0)
+boxDim         (64,32,1,1,1)
+elementStrides (1,1,1,1,1)
+interleave     0
+swizzle        3
+l2Promotion    2
+oobFill        0
+Error: Failed to initialize the TMA descriptor 700
+TMA Desc Addr:   0x7ffdb0fc8000
+format         9
+dim            3
+gmem_address   0x725d8d00e800
+globalDim      (2560,1,1,1,1)
+globalStrides  (2,5120,0,0,0)
+boxDim         (64,32,1,1,1)
+elementStrides (1,1,1,1,1)
+interleave     0
+swizzle        3
+l2Promotion    2
+oobFill        0
+Error: Failed to initialize the TMA descriptor 700
+2025-11-09 20:48:20,939 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+====================================================== short test summary info =======================================================
+FAILED tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] - RuntimeError: [Bf16 Gemm Runner] failed to initialize
+========================================================= 1 failed in 29.72s =========================================================
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# 
