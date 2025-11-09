@@ -26,7 +26,7 @@ dynamic = ["dependencies", "version"]
 flashinfer = "flashinfer.__main__:cli"
 
 [build-system]
-requires = ["setuptools>=77", "packaging>=24", "apache-tvm-ffi>=0.1,<0.2"]
+requires = ["setuptools>=77", "packaging>=24", "wheel>=0.42", "apache-tvm-ffi>=0.1,<0.2"]
 build-backend = "build_backend"
 backend-path = ["."]
 
