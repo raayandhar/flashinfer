@@ -120,8 +120,7 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
       ArchTag, OperatorClass, ElementA, LayoutA, AlignmentA, ElementB, LayoutB, AlignmentB,
       ElementAccumulator, TileShape, ClusterShape,
-      cutlass::gemm::collective::StageCountAutoCarveout<static_cast<int>(
-          sizeof(typename CollectiveEpilogue::SharedStorage))>,
+      cute::Int<2>,  // Minimum 2 stages required by CUTLASS SM100 kernels
       MainloopSchedule>::CollectiveOp;
 
   using GemmKernel =
