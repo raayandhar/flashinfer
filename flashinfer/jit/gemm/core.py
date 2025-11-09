@@ -200,22 +200,9 @@ def gen_gemm_sm100_module_cutlass_bf16() -> JitSpec:
     with open(jit_env.FLASHINFER_CSRC_DIR / "bf16_gemm_cutlass.jinja") as f:
         kernel_inst_templ = jinja2.Template(f.read())
         dtype_list = ["__nv_bfloat16", "half"]
+        # Start with smallest tile only to verify basic implementation works
         cta_m_n_k_list = [
-            (64, 32, 128),
             (64, 64, 128),
-            (64, 128, 128),
-            (64, 256, 128),
-            (128, 8, 256),
-            (128, 16, 128),
-            (128, 32, 128),
-            (128, 64, 128),
-            (128, 128, 128),
-            (128, 256, 128),
-            (128, 128, 256),
-            (128, 256, 256),
-            (256, 64, 128),
-            (256, 128, 128),
-            (256, 256, 128),
         ]
         for cta_m, cta_n, cta_k in cta_m_n_k_list:
             for dtype in dtype_list:

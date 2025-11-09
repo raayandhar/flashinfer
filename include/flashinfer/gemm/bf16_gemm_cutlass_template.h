@@ -61,26 +61,11 @@ size_t dispatchGemmClusterShapeSm100(__nv_bfloat16 const* A, __nv_bfloat16 const
                                      cudaStream_t stream) {
   using namespace cute;
 
+  // Start with only simplest cluster shape to verify basic implementation works
   switch (gemmConfig.cluster_shape) {
     case ClusterShape::ClusterShape_1x1x1:
       return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
                                                 Shape<_1, _1, _1>, _1SM>(
-          A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-    case ClusterShape::ClusterShape_1x2x1:
-      return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
-                                                Shape<_1, _2, _1>, _1SM>(
-          A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-    case ClusterShape::ClusterShape_1x4x1:
-      return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
-                                                Shape<_1, _4, _1>, _1SM>(
-          A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-    case ClusterShape::ClusterShape_2x1x1:
-      return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
-                                                Shape<_2, _1, _1>, _2SM>(
-          A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-    case ClusterShape::ClusterShape_2x2x1:
-      return genericBf16GemmKernelLauncherSm100<T, arch, CTA_M_, CTA_N_, CTA_K_,
-                                                Shape<_2, _2, _1>, _2SM>(
           A, B, D, m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
     default:
       throw std::runtime_error("invalid config for bf16 gemm");
@@ -93,29 +78,10 @@ size_t dispatchToArch(__nv_bfloat16 const* A, __nv_bfloat16 const* B, void* D, i
                       size_t const workspaceBytes, cudaStream_t stream) {
   using arch = cutlass::arch::Sm100;
 
+  // Start with only smallest tile to verify basic implementation works
   switch (gemmConfig.tile_config_sm100) {
     case CutlassTileConfigSM100::CtaShape64x64x128B:
       return dispatchGemmClusterShapeSm100<T, arch, 64, 64, 128>(
-          B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-      break;
-    case CutlassTileConfigSM100::CtaShape64x128x128B:
-      return dispatchGemmClusterShapeSm100<T, arch, 64, 128, 128>(
-          B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-      break;
-    case CutlassTileConfigSM100::CtaShape64x256x128B:
-      return dispatchGemmClusterShapeSm100<T, arch, 64, 256, 128>(
-          B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-      break;
-    case CutlassTileConfigSM100::CtaShape128x64x128B:
-      return dispatchGemmClusterShapeSm100<T, arch, 128, 64, 128>(
-          B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-      break;
-    case CutlassTileConfigSM100::CtaShape128x128x128B:
-      return dispatchGemmClusterShapeSm100<T, arch, 128, 128, 128>(
-          B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
-      break;
-    case CutlassTileConfigSM100::CtaShape128x256x128B:
-      return dispatchGemmClusterShapeSm100<T, arch, 128, 256, 128>(
           B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
       break;
 
