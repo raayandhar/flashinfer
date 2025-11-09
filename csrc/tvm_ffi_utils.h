@@ -22,8 +22,10 @@
 
 #include "dlpack/dlpack.h"
 
+#ifndef FLASHINFER_TVM_FFI_SKIP_TENSOR_USING
 using tvm::ffi::Tensor;
 using tvm::ffi::TensorView;
+#endif
 namespace ffi = tvm::ffi;
 
 inline constexpr int64_t encode_dlpack_dtype(DLDataType dtype) {

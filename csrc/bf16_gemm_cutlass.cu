@@ -26,7 +26,9 @@
 #include "flashinfer/gemm/bf16_gemm_cutlass.h"
 #include "flashinfer/gemm/bf16_gemm_cutlass_template.h"
 #include "flashinfer/gemm/cutlass_gemm_configs.h"
+#define FLASHINFER_TVM_FFI_SKIP_TENSOR_USING
 #include "tvm_ffi_utils.h"
+#undef FLASHINFER_TVM_FFI_SKIP_TENSOR_USING
 
 using flashinfer::gemm::CutlassBf16GemmRunner;
 using flashinfer::gemm::CutlassBf16GemmRunnerInterface;
@@ -43,6 +45,9 @@ template class CutlassBf16GemmRunner<half>;
 }  // namespace flashinfer
 
 namespace torch_ext {
+
+using tvm::ffi::Tensor;
+using tvm::ffi::TensorView;
 
 namespace {
 
