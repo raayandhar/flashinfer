@@ -43,21 +43,21 @@
 namespace flashinfer {
 namespace gemm {
 
-struct _1SM {};
-struct _2SM {};
+struct Bf16OneSm {};
+struct Bf16TwoSm {};
 
 template <typename>
 struct SMTypeAdapter {};
 
 template <>
-struct SMTypeAdapter<_1SM> {
+struct SMTypeAdapter<Bf16OneSm> {
   static int const Scale = 1;
   using EpilogueSchedule = cutlass::epilogue::TmaWarpSpecialized1Sm;
   using MainloopSchedule = cutlass::gemm::KernelTmaWarpSpecialized1SmSm100;
 };
 
 template <>
-struct SMTypeAdapter<_2SM> {
+struct SMTypeAdapter<Bf16TwoSm> {
   static int const Scale = 2;
   using EpilogueSchedule = cutlass::epilogue::TmaWarpSpecialized2Sm;
   using MainloopSchedule = cutlass::gemm::KernelTmaWarpSpecialized2SmSm100;
