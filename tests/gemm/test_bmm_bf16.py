@@ -19,14 +19,16 @@ def test_bmm_bf16(
     res_dtype: torch.dtype,
 ):
     compute_capability = get_compute_capability(torch.device(device="cuda"))
-    cc_number = compute_capability[0] * 10 + compute_capability[1]
+    print(compute_capability)
+    # cc_number = compute_capability[0] * 10 + compute_capability[1]
+    """
     if not bmm_bf16.is_compute_capability_supported(cc_number):
         pytest.skip(
             f"bmm_bf16 requires one of the following compute capabilities: "
             f"{sorted(bmm_bf16._supported_ccs)}. "
             f"Detected sm{cc_number}."
         )
-
+    """
     torch.manual_seed(7)
     a = torch.randn([batches, m, k], device="cuda", dtype=torch.bfloat16)
     b = torch.randn([batches, k, n], device="cuda", dtype=torch.bfloat16)
