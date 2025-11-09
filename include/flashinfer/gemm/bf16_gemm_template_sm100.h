@@ -112,15 +112,19 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   using MainloopSchedule = typename SMTypeAdapter<XSM_>::MainloopSchedule;
   using EpilogueTileType = cutlass::epilogue::collective::EpilogueTileAuto;
 
-  // Use LinearCombination with void ElementC (no source C matrix) like FP4
-  // This performs type conversion from float accumulator to output type without alpha/beta
-  using FusionCallbacks = cutlass::epilogue::fusion::LinearCombination<
-      ElementD, ElementCompute, void, ElementCompute>;
+  // Use SM90 EVT style like FP8, but with just Sm90AccFetch wrapped in Sm90Compute
+  // This performs: D = 1.0 * acc (with type conversion)
+  using CustomEVT = cutlass::epilogue::fusion::Sm90EVT<
+      cutlass::epilogue::fusion::Sm90Compute<
+          cutlass::multiplies, ElementD, ElementCompute,
+          cutlass::FloatRoundStyle::round_to_nearest>,  // multiply by 1.0 for type conversion
+      cutlass::epilogue::fusion::Sm90ScalarBroadcast<ElementCompute>,  // scalar value (1.0)
+      cutlass::epilogue::fusion::Sm90AccFetch>;  // fetch accumulator
 
   using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
       ArchTag, OperatorClass, TileShape, ClusterShape, EpilogueTileType, ElementAccumulator,
       ElementCompute, ElementC, LayoutC, AlignmentC, ElementD, LayoutD, AlignmentD,
-      EpilogueSchedule, FusionCallbacks>::CollectiveOp;
+      EpilogueSchedule, CustomEVT>::CollectiveOp;
 
   using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
       ArchTag, OperatorClass, ElementA, LayoutA, AlignmentA, ElementB, LayoutB, AlignmentB,
@@ -152,7 +156,13 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
        stride_B},
       {{}, nullptr, stride_C, reinterpret_cast<ElementOutput*>(D), stride_D}};
 
-  // No need to set alpha/beta since we're using LinearCombination with void ElementC
+  // Set the scalar to 1.0 for identity multiplication (just performs type conversion)
+  ElementCompute scale_value = 1.0f;
+  arguments.epilogue.thread = {
+      {{0.F}, {&scale_value}},  // scalar broadcast value (1.0)
+      {},                        // Sm90AccFetch
+      {}                         // multiplies operation
+  };
 
   Gemm gemm;
 
