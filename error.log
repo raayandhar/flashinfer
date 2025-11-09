@@ -1,3 +1,30 @@
+(.venv) root@92f2318f3ff8:/workspace/flashinfer# git fetch origin && git pull && python scripts/clear_flashinfer_cache.py 
+remote: Enumerating objects: 23, done.
+remote: Counting objects: 100% (23/23), done.
+remote: Compressing objects: 100% (7/7), done.
+remote: Total 12 (delta 10), reused 6 (delta 4), pack-reused 0 (from 0)
+Unpacking objects: 100% (12/12), 1.68 KiB | 16.00 KiB/s, done.
+From https://github.com/raayandhar/flashinfer
+   704081ba..b797e988  bf16_cutlass_gemm -> origin/bf16_cutlass_gemm
+Updating 704081ba..b797e988
+Fast-forward
+ csrc/bf16_gemm_cutlass.cu                            | 31 ++++++++++++++++++++++++++++++-
+ error.log                                            | 56 ++++++++++++++++++--------------------------------------
+ flashinfer/gemm.py                                   |  2 +-
+ include/flashinfer/gemm/bf16_gemm_cutlass_template.h |  2 +-
+ include/flashinfer/gemm/bf16_gemm_template_sm100.h   |  2 +-
+ 5 files changed, 51 insertions(+), 42 deletions(-)
+[removed] /root/.cache/flashinfer
+[skip] flashinfer-jit-cache (missing)
+[skip] flashinfer-cubin (missing)
+(.venv) root@92f2318f3ff8:/workspace/flashinfer# CUDA_LAUNCH_BLOCKING=1 pytest tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] -v
+======================================================= test session starts =======================================================
+platform linux -- Python 3.11.11, pytest-9.0.0, pluggy-1.6.0 -- /workspace/flashinfer/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace/flashinfer
+configfile: pytest.ini
+collected 1 item                                                                                                                  
+
 tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] FAILED                                                     [100%]
 
 ============================================================ FAILURES =============================================================
@@ -47,14 +74,14 @@ python/tvm_ffi/cython/function.pxi:814: in core.Function.__call__
     ???
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
->   TVM_FFI_ICHECK_EQ(mat1.size(1), mat2.size(1))
-E   RuntimeError: Check failed: mat1.size(1) == mat2.size(1) (8192 vs. 2560) : mat1 and mat2 shapes cannot be multiplied (1x8192 and 8192x2560)
+>   TVM_FFI_ICHECK(is_col_major_matrix_view(mat2))
+E   RuntimeError: Check failed: (is_col_major_matrix_view(mat2)) is false: mat2 last two dimensions must be laid out in column-major order; pass b.transpose(-2, -1).
 
-csrc/bf16_gemm_cutlass.cu:98: RuntimeError
+csrc/bf16_gemm_cutlass.cu:121: RuntimeError
 ------------------------------------------------------ Captured stderr call -------------------------------------------------------
-2025-11-09 20:38:59,506 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
-2025-11-09 20:39:29,297 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
+2025-11-09 20:45:44,742 - INFO - autotuner.py:256 - flashinfer.jit: [Autotuner]: Autotuning process starts ...
+2025-11-09 20:46:15,183 - INFO - autotuner.py:262 - flashinfer.jit: [Autotuner]: Autotuning process ends
 ===================================================== short test summary info =====================================================
-FAILED tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] - RuntimeError: Check failed: mat1.size(1) == mat2.size(1) (8192 vs. 2560) : mat1 and mat2 shapes cannot be multiplied (1x8192 a...
-======================================================= 1 failed in 30.43s ========================================================
+FAILED tests/gemm/test_mm_bf16.py::test_mm_bf16[res_dtype0-8192-2560-1] - RuntimeError: Check failed: (is_col_major_matrix_view(mat2)) is false: mat2 last two dimensions must be laid out in column-maj...
+======================================================= 1 failed in 31.08s ========================================================
 (.venv) root@92f2318f3ff8:/workspace/flashinfer# 
