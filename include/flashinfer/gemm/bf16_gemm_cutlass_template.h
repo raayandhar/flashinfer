@@ -82,7 +82,7 @@ size_t dispatchToArch(__nv_bfloat16 const* A, __nv_bfloat16 const* B, void* D, i
   switch (gemmConfig.tile_config_sm100) {
     case CutlassTileConfigSM100::CtaShape64x64x128B:
       return dispatchGemmClusterShapeSm100<T, arch, 64, 64, 128>(
-          B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
+          A, B, static_cast<T*>(D), m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
       break;
 
     default:

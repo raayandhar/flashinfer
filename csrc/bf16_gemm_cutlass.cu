@@ -51,32 +51,6 @@ using tvm::ffi::TensorView;
 
 namespace {
 
-bool is_col_major_matrix_view(TensorView tensor) {
-  int ndim = tensor.ndim();
-  if (ndim < 2) {
-    return false;
-  }
-
-  int row_dim = ndim - 2;
-  int col_dim = ndim - 1;
-
-  if (tensor.stride(row_dim) != 1) {
-    return false;
-  }
-  if (tensor.stride(col_dim) != tensor.size(row_dim)) {
-    return false;
-  }
-
-  int64_t expected_stride = tensor.size(row_dim) * tensor.size(col_dim);
-  for (int dim = row_dim - 1; dim >= 0; --dim) {
-    if (tensor.stride(dim) != expected_stride) {
-      return false;
-    }
-    expected_stride *= tensor.size(dim);
-  }
-  return true;
-}
-
 CutlassGemmConfig getBf16GemmConfig(int64_t m, int64_t n, int64_t k, int64_t tactic) {
   auto getCutlassBf16GemmConfigs = []() {
     CutlassBf16GemmRunner<__nv_bfloat16> gemmRunner;
@@ -116,10 +90,7 @@ void runGemm(TensorView out, TensorView mat1, TensorView mat2, int64_t m, int64_
 void bf16_bmm_impl(TensorView mat1, TensorView mat2, TensorView out, TensorView workspace_buffer,
                    int64_t tactic) {
   CHECK_INPUT_AND_TYPE(mat1, dl_bfloat16);
-  CHECK_CUDA(mat2);
-  CHECK_INPUT_TYPE(mat2, dl_bfloat16);
-  TVM_FFI_ICHECK(is_col_major_matrix_view(mat2))
-      << "mat2 last two dimensions must be laid out in column-major order; pass b.transpose(-2, -1).";
+  CHECK_INPUT_AND_TYPE(mat2, dl_bfloat16);
 
   int64_t m, n, k, b;
   if (mat1.ndim() == 2) {

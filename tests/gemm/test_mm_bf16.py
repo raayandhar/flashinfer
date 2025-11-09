@@ -6,9 +6,9 @@ from flashinfer import autotune, mm_bf16
 from flashinfer.utils import get_compute_capability
 
 
-@pytest.mark.parametrize("m", [16, 64, 256])
-@pytest.mark.parametrize("n", [64, 256])
-@pytest.mark.parametrize("k", [64, 256, 512])
+@pytest.mark.parametrize("m", [1, 2, 4, 8, 16])
+@pytest.mark.parametrize("n", [2560, 5120])
+@pytest.mark.parametrize("k", [8192, 16384])
 @pytest.mark.parametrize("res_dtype", [torch.bfloat16, torch.float16])
 def test_mm_bf16(m: int, n: int, k: int, res_dtype: torch.dtype):
     compute_capability = get_compute_capability(torch.device(device="cuda"))

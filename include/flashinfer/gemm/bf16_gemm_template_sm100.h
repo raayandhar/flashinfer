@@ -77,7 +77,7 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   constexpr int AlignmentA = 128 / cutlass::sizeof_bits<ElementA>::value;
 
   using ElementB = cutlass::bfloat16_t;
-  using LayoutB = cutlass::layout::ColumnMajor;
+  using LayoutB = cutlass::layout::RowMajor;
   constexpr int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value;
 
   using ElementOutput_ =
@@ -92,7 +92,7 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
 #endif
 
   using ElementC = ElementOutput;
-  using LayoutC = cutlass::layout::RowMajor;
+  using LayoutC = cutlass::layout::ColumnMajor;
   constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;
 
   using ElementD = ElementC;

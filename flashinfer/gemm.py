@@ -533,7 +533,7 @@ def get_gemm_sm100_module_cutlass_bf16():
                 a, b, out, workspace_buffer = inputs
                 module.bf16_gemm(
                     a,
-                    b.transpose(-2, -1),
+                    b,
                     out,
                     workspace_buffer,
                     tactic,
