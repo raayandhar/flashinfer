@@ -17,7 +17,6 @@
 #ifndef FLASHINFER_BF16_GEMM_CUTLASS_H_
 #define FLASHINFER_BF16_GEMM_CUTLASS_H_
 
-#include <cuda_bf16.h>
 #include <cuda_runtime_api.h>
 
 #include <vector>

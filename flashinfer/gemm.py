@@ -179,7 +179,7 @@ def get_gemm_module():
     return _gemm_module
 
 
-@supported_compute_capability([100, 103, 110])
+@supported_compute_capability([100])
 def mm_bf16(
     a: torch.Tensor,
     b: torch.Tensor,
@@ -211,20 +211,11 @@ def mm_bf16(
     -------
     torch.Tensor
         Output tensor of shape (m, n) with dtype ``out_dtype``.
+
+    # Note: add Examples section here
     """
     if backend != "cutlass":
         raise ValueError(f"Unsupported backend: {backend}. Only cutlass is available.")
-    if a.ndim != 2 or b.ndim != 2:
-        raise ValueError("mm_bf16 expects 2D tensors for both inputs.")
-    if a.dtype != torch.bfloat16 or b.dtype != torch.bfloat16:
-        raise ValueError("mm_bf16 currently supports only bf16 inputs.")
-    if a.device != b.device:
-        raise ValueError("Input tensors must be on the same device.")
-    if a.shape[1] != b.shape[0]:
-        raise ValueError(
-            f"Incompatible shapes for GEMM: {a.shape} x {b.shape}. "
-            "Expected a.shape[1] == b.shape[0]."
-        )
     if out_dtype not in (torch.bfloat16, torch.float16):
         raise ValueError("Only bf16 and fp16 outputs are supported.")
 
@@ -255,7 +246,7 @@ def mm_bf16(
     return out
 
 
-@supported_compute_capability([100, 103, 110])
+@supported_compute_capability([100])
 def bmm_bf16(
     a: torch.Tensor,
     b: torch.Tensor,
@@ -263,19 +254,18 @@ def bmm_bf16(
     out_dtype: torch.dtype = torch.bfloat16,
     backend: Literal["cutlass"] = "cutlass",
 ) -> torch.Tensor:
-    r"""Batched BF16 GEMM on NVIDIA Blackwell GPUs.
+    r"""BMM BF16
 
     Parameters
     ----------
     a: torch.Tensor
-        Input tensor, shape (batch, m, k), bf16 row-major.
+        Input tensor, shape (b, m, k), bf16.
 
     b: torch.Tensor
-        Weight tensor, shape (batch, k, n), bf16 row-major. Each slice is interpreted
-        as a column-major (n, k) matrix internally.
+        Weight tensor, shape (b, k, n), bf16.
 
     out: Optional[torch.Tensor]
-        Optional preallocated output tensor of shape (batch, m, n).
+        Optional preallocated output tensor of shape (b, m, n).
 
     out_dtype: torch.dtype
         Output dtype. Supported values: torch.bfloat16 (default) and torch.float16.
@@ -286,23 +276,12 @@ def bmm_bf16(
     Returns
     -------
     torch.Tensor
-        Output tensor of shape (batch, m, n) with dtype ``out_dtype``.
+        Output tensor of shape (b, m, n) with dtype ``out_dtype``.
+
+    # Note: add Examples section here
     """
     if backend != "cutlass":
         raise ValueError(f"Unsupported backend: {backend}. Only cutlass is available.")
-    if a.ndim != 3 or b.ndim != 3:
-        raise ValueError("bmm_bf16 expects 3D tensors for both inputs.")
-    if a.dtype != torch.bfloat16 or b.dtype != torch.bfloat16:
-        raise ValueError("bmm_bf16 currently supports only bf16 inputs.")
-    if a.device != b.device:
-        raise ValueError("Input tensors must be on the same device.")
-    if a.shape[0] != b.shape[0]:
-        raise ValueError("Batch dimensions of A and B must match.")
-    if a.shape[2] != b.shape[1]:
-        raise ValueError(
-            f"Incompatible shapes for batched GEMM: {a.shape} x {b.shape}. "
-            "Expected a.shape[2] == b.shape[1]."
-        )
     if out_dtype not in (torch.bfloat16, torch.float16):
         raise ValueError("Only bf16 and fp16 outputs are supported.")
 
@@ -619,7 +598,7 @@ def bf16_gemm_sm100(
     workspace_buffer: torch.Tensor,
 ) -> None:
     runners = []
-    is_sm_supported = _match_sm_version(a.device, ["100", "103", "110"])
+    is_sm_supported = _match_sm_version(a.device, ["100"])
 
     if is_sm_supported:
         runners.append(

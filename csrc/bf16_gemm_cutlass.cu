@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <cuda_bf16.h>
 #include <cuda_fp16.h>
 
 #include <cstddef>
@@ -23,11 +22,12 @@
 #include <type_traits>
 #include <vector>
 
+#include "flashinfer/gemm/cutlass_gemm_configs.h"
 #include "flashinfer/gemm/bf16_gemm_cutlass.h"
 #include "flashinfer/gemm/bf16_gemm_cutlass_template.h"
-#include "flashinfer/gemm/cutlass_gemm_configs.h"
 #include "tvm_ffi_utils.h"
 
+using flashinfer::gemm::ClusterShape;
 using flashinfer::gemm::CutlassBf16GemmRunner;
 using flashinfer::gemm::CutlassBf16GemmRunnerInterface;
 using flashinfer::gemm::CutlassGemmConfig;
@@ -69,7 +69,7 @@ void runGemm(TensorView out, TensorView mat1, TensorView mat2, int64_t m, int64_
   auto runKernel = [&](void* workspace) {
     gemmRunner.gemm(static_cast<__nv_bfloat16*>(mat1.data_ptr()),
                     static_cast<__nv_bfloat16*>(mat2.data_ptr()), out.data_ptr(), m, n, k, b,
-                    gemmConfig, reinterpret_cast<char*>(workspace), required_workspace_size,
+                    gemmConfig, static_cast<char*>(workspace), required_workspace_size,
                     get_stream(mat1.device()));
   };
 

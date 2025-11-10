@@ -16,39 +16,39 @@
 #ifndef FLASHINFER_BF16_GEMM_TEMPLATE_SM100_H_
 #define FLASHINFER_BF16_GEMM_TEMPLATE_SM100_H_
 
-#ifdef __GNUC__
+#ifdef __GNUC__  // Check if the compiler is GCC or Clang
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
-#endif
-
+#endif  // __GNUC__
 #include "cutlass/arch/arch.h"
-#include "cutlass/bfloat16.h"
 #include "cutlass/cutlass.h"
 #include "cutlass/epilogue/collective/collective_builder.hpp"
 #include "cutlass/gemm/collective/collective_builder.hpp"
 #include "cutlass/gemm/device/gemm_universal_adapter.h"
 #include "cutlass/gemm/gemm.h"
+#include "cutlass/numeric_conversion.h"
 #include "flashinfer/arch_condition.h"
 #include "flashinfer/cutlass_utils.cuh"
 
-#ifdef __GNUC__
+#ifdef __GNUC__  // Check if the compiler is GCC or Clang
 #pragma GCC diagnostic pop
-#endif
+#endif  // __GNUC__
+
 
 #include <cstddef>
 #include <stdexcept>
 
+#include "cutlass/bfloat16.h"
 #include "flashinfer/gemm/cutlass_gemm_configs.h"
 
 namespace flashinfer {
 namespace gemm {
 
-struct _1SM {};
-
-struct _2SM {};
-
 template <typename>
 struct SMTypeAdapter {};
+
+struct _1SM;
+struct _2SM;
 
 template <>
 struct SMTypeAdapter<_1SM> {
@@ -147,6 +147,7 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
        stride_B},
       {{}, nullptr, stride_C, reinterpret_cast<ElementOutput*>(D), stride_D}};
 
+  // Is not the right way to do this?
   auto& fusion_args = arguments.epilogue.thread;
   fusion_args.alpha = 1.0f;
   fusion_args.beta = 0.0f;
@@ -160,6 +161,7 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
     throw std::runtime_error("[Bf16 Gemm Runner] insufficient workspace");
   }
 
+  // NOTE: These can also be simplified using CUTLASS_CHECK. Same goes for some of the other files.  
   cutlass::Status initStatus = gemm.initialize(arguments, workspacePtr, stream);
   if (initStatus != cutlass::Status::kSuccess) {
     throw std::runtime_error("[Bf16 Gemm Runner] failed to initialize");
