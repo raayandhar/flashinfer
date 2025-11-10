@@ -187,7 +187,7 @@ def mm_bf16(
     out_dtype: torch.dtype = torch.bfloat16,
     backend: Literal["cutlass"] = "cutlass",
 ) -> torch.Tensor:
-    r"""BF16 matrix multiplication on NVIDIA Blackwell GPUs.
+    r"""MM BF16
 
     Parameters
     ----------
@@ -199,18 +199,18 @@ def mm_bf16(
         as a column-major (n, k) matrix internally.
 
     out: Optional[torch.Tensor]
-        Optional preallocated output tensor of shape (m, n).
+        Out tensor, shape (m, n), bf16 or fp16, defaults to ``None``.
 
     out_dtype: torch.dtype
-        Output dtype. Supported values: torch.bfloat16 (default) and torch.float16.
+        Output dtype, bf16 (default) or fp16.
 
     backend: Literal["cutlass"]
-        Execution backend. Only ``"cutlass"`` is currently supported.
+        Backend to use, defaults to "cutlass".
 
     Returns
     -------
     torch.Tensor
-        Output tensor of shape (m, n) with dtype ``out_dtype``.
+        Out tensor, shape (m, n), bf16 or fp16.
 
     # Note: add Examples section here
     """
@@ -265,18 +265,18 @@ def bmm_bf16(
         Weight tensor, shape (b, k, n), bf16.
 
     out: Optional[torch.Tensor]
-        Optional preallocated output tensor of shape (b, m, n).
+        Out tensor, shape (b, m, n), bf16 or fp16, defaults to ``None``.
 
     out_dtype: torch.dtype
-        Output dtype. Supported values: torch.bfloat16 (default) and torch.float16.
+        Output dtype, bf16 (default) or fp16.
 
     backend: Literal["cutlass"]
-        Execution backend. Only ``"cutlass"`` is currently supported.
+        Backend to use, defaults to "cutlass".
 
     Returns
     -------
     torch.Tensor
-        Output tensor of shape (b, m, n) with dtype ``out_dtype``.
+        Out tensor, shape (b, m, n), bf16 or fp16.
 
     # Note: add Examples section here
     """
