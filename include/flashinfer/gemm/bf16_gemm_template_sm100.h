@@ -34,7 +34,6 @@
 #pragma GCC diagnostic pop
 #endif  // __GNUC__
 
-
 #include <cstddef>
 #include <stdexcept>
 
@@ -103,9 +102,8 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   using ElementCompute = float;
   using ArchTag = cutlass::arch::Sm100;
   using OperatorClass = cutlass::arch::OpClassTensorOp;
-  using TileShape =
-      cute::Shape<cute::Int<CTA_M_ * SMTypeAdapter<XSM_>::Scale>, cute::Int<CTA_N_>,
-                  cute::Int<CTA_K_>>;
+  using TileShape = cute::Shape<cute::Int<CTA_M_ * SMTypeAdapter<XSM_>::Scale>, cute::Int<CTA_N_>,
+                                cute::Int<CTA_K_>>;
 
   using ClusterShape = ClusterShape_;
   using EpilogueSchedule = typename SMTypeAdapter<XSM_>::EpilogueSchedule;
@@ -124,9 +122,8 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
           sizeof(typename CollectiveEpilogue::SharedStorage))>,
       MainloopSchedule>::CollectiveOp;
 
-  using GemmKernel =
-      cutlass::gemm::kernel::GemmUniversal<Shape<int, int, int, int>, CollectiveMainloop,
-                                           CollectiveEpilogue>;
+  using GemmKernel = cutlass::gemm::kernel::GemmUniversal<Shape<int, int, int, int>,
+                                                          CollectiveMainloop, CollectiveEpilogue>;
 
   using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
 
@@ -161,7 +158,7 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
     throw std::runtime_error("[Bf16 Gemm Runner] insufficient workspace");
   }
 
-  // NOTE: These can also be simplified using CUTLASS_CHECK. Same goes for some of the other files.  
+  // NOTE: These can also be simplified using CUTLASS_CHECK. Same goes for some of the other files.
   cutlass::Status initStatus = gemm.initialize(arguments, workspacePtr, stream);
   if (initStatus != cutlass::Status::kSuccess) {
     throw std::runtime_error("[Bf16 Gemm Runner] failed to initialize");
@@ -178,12 +175,13 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
 }  // namespace gemm
 }  // namespace flashinfer
 
-#define INSTANCE_BF16_GEMM_TEMPLATE_SM100(RET_TYPE, TILE_M, TILE_N, TILE_K, CGA_M_, CGA_N_, CGA_K_, \
-  SM_TYPE)                                                  \
-template size_t genericBf16GemmKernelLauncherSm100<                                               \
-RET_TYPE, cutlass::arch::Sm100, TILE_M, TILE_N, TILE_K,                                       \
-cute::Shape<cute::Int<CGA_M_>, cute::Int<CGA_N_>, cute::Int<CGA_K_>>, SM_TYPE>(               \
-__nv_bfloat16 const* A, __nv_bfloat16 const* B, RET_TYPE* D, int m, int n, int k, int b,      \
-CutlassGemmConfig config, char* workspacePtr, size_t const workspaceBytes, cudaStream_t stream);
+#define INSTANCE_BF16_GEMM_TEMPLATE_SM100(RET_TYPE, TILE_M, TILE_N, TILE_K, CGA_M_, CGA_N_,    \
+                                          CGA_K_, SM_TYPE)                                     \
+  template size_t genericBf16GemmKernelLauncherSm100<                                          \
+      RET_TYPE, cutlass::arch::Sm100, TILE_M, TILE_N, TILE_K,                                  \
+      cute::Shape<cute::Int<CGA_M_>, cute::Int<CGA_N_>, cute::Int<CGA_K_>>, SM_TYPE>(          \
+      __nv_bfloat16 const* A, __nv_bfloat16 const* B, RET_TYPE* D, int m, int n, int k, int b, \
+      CutlassGemmConfig config, char* workspacePtr, size_t const workspaceBytes,               \
+      cudaStream_t stream);
 
 #endif  // FLASHINFER_BF16_GEMM_TEMPLATE_SM100_H_

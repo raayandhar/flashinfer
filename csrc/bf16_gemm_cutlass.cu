@@ -22,9 +22,9 @@
 #include <type_traits>
 #include <vector>
 
-#include "flashinfer/gemm/cutlass_gemm_configs.h"
 #include "flashinfer/gemm/bf16_gemm_cutlass.h"
 #include "flashinfer/gemm/bf16_gemm_cutlass_template.h"
+#include "flashinfer/gemm/cutlass_gemm_configs.h"
 #include "tvm_ffi_utils.h"
 
 using flashinfer::gemm::ClusterShape;

@@ -601,9 +601,7 @@ def bf16_gemm_sm100(
     is_sm_supported = _match_sm_version(a.device, ["100"])
 
     if is_sm_supported:
-        runners.append(
-            get_gemm_sm100_module_cutlass_bf16().cutlass_bf16_gemm_runner()
-        )
+        runners.append(get_gemm_sm100_module_cutlass_bf16().cutlass_bf16_gemm_runner())
 
     if len(runners) == 0:
         major, minor = get_compute_capability(torch.device("cuda"))
