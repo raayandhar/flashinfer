@@ -118,6 +118,20 @@ void fp8_bmm_impl(TensorView mat1, TensorView mat2, TensorView scale_a, TensorVi
     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "mat1 must be a matrix or a batch of matrices";
   }
 
+  std::cout << "[FP8 C++] mat1: shape=[";
+  for (int i = 0; i < mat1.ndim(); i++) std::cout << mat1.size(i) << (i < mat1.ndim()-1 ? ", " : "");
+  std::cout << "], strides=[";
+  for (int i = 0; i < mat1.ndim(); i++) std::cout << mat1.stride(i) << (i < mat1.ndim()-1 ? ", " : "");
+  std::cout << "]" << std::endl;
+  
+  std::cout << "[FP8 C++] mat2: shape=[";
+  for (int i = 0; i < mat2.ndim(); i++) std::cout << mat2.size(i) << (i < mat2.ndim()-1 ? ", " : "");
+  std::cout << "], strides=[";
+  for (int i = 0; i < mat2.ndim(); i++) std::cout << mat2.stride(i) << (i < mat2.ndim()-1 ? ", " : "");
+  std::cout << "]" << std::endl;
+  
+  std::cout << "[FP8 C++] Extracted dimensions: m=" << m << ", n=" << n << ", k=" << k << ", b=" << b << std::endl;
+
   // No heuristic for now, we rely on the autotuner to select the best tactic.
   if (tactic == -1) {
     tactic = 0;
@@ -152,6 +166,18 @@ void fp8_bmm_impl(TensorView mat1, TensorView mat2, TensorView scale_a, TensorVi
 
 void fp8_gemm(TensorView mat1, TensorView mat2, TensorView scale_a, TensorView scale_b,
               TensorView out, TensorView workspace_buffer, int64_t tactic) {
+  std::cout << "[fp8_gemm entry] mat1: shape=[";
+  for (int i = 0; i < mat1.ndim(); i++) std::cout << mat1.size(i) << (i < mat1.ndim()-1 ? ", " : "");
+  std::cout << "], strides=[";
+  for (int i = 0; i < mat1.ndim(); i++) std::cout << mat1.stride(i) << (i < mat1.ndim()-1 ? ", " : "");
+  std::cout << "], data_ptr=" << mat1.data_ptr() << std::endl;
+  
+  std::cout << "[fp8_gemm entry] mat2: shape=[";
+  for (int i = 0; i < mat2.ndim(); i++) std::cout << mat2.size(i) << (i < mat2.ndim()-1 ? ", " : "");
+  std::cout << "], strides=[";
+  for (int i = 0; i < mat2.ndim(); i++) std::cout << mat2.stride(i) << (i < mat2.ndim()-1 ? ", " : "");
+  std::cout << "], data_ptr=" << mat2.data_ptr() << std::endl;
+  
   fp8_bmm_impl(mat1, mat2, scale_a, scale_b, out, workspace_buffer, tactic);
 }
 

@@ -469,9 +469,13 @@ def get_gemm_sm100_module_cutlass_fp8():
                 **kwargs,
             ) -> torch.Tensor:
                 a, b, scale_a, scale_b, out, workspace_buffer = inputs
+                print(f"[FP8 Python] Input a: shape={a.shape}, strides={a.stride()}, contiguous={a.is_contiguous()}")
+                print(f"[FP8 Python] Input b: shape={b.shape}, strides={b.stride()}, contiguous={b.is_contiguous()}")
+                b_transposed = b.transpose(-2, -1)
+                print(f"[FP8 Python] After transpose b: shape={b_transposed.shape}, strides={b_transposed.stride()}, contiguous={b_transposed.is_contiguous()}")
                 module.fp8_gemm(
                     a,
-                    b.transpose(-2, -1),
+                    b_transposed,
                     scale_a,
                     scale_b,
                     out,
@@ -534,6 +538,10 @@ def fp8_gemm_sm100(
     workspace_buffer: torch.Tensor,
     runner_names: List[str],
 ) -> None:
+    print(f"[fp8_gemm_sm100] Input a: shape={a.shape}, strides={a.stride()}")
+    print(f"[fp8_gemm_sm100] Input b: shape={b.shape}, strides={b.stride()}")
+    print(f"[fp8_gemm_sm100] Input out: shape={out.shape}, strides={out.stride()}")
+    
     runners = []
     if "cutlass_sm10x" in runner_names:
         runners.append(get_gemm_sm100_module_cutlass_fp8().cutlass_fp8_gemm_runner())
@@ -564,6 +572,10 @@ def fp8_gemm_sm100(
     )
 
     inputs = [a, b, scale_a, scale_b, out, workspace_buffer]
+    print(f"[fp8_gemm_sm100] About to call tuner.choose_one with inputs:")
+    for i, inp in enumerate(inputs):
+        print(f"  inputs[{i}]: shape={inp.shape}, strides={inp.stride()}")
+    
     runner, tactic = tuner.choose_one(
         "fp8_gemm",
         runners,
@@ -580,6 +592,10 @@ def bf16_gemm_sm100(
     out: torch.Tensor,
     workspace_buffer: torch.Tensor,
 ) -> None:
+    print(f"[bf16_gemm_sm100] Input a: shape={a.shape}, strides={a.stride()}")
+    print(f"[bf16_gemm_sm100] Input b: shape={b.shape}, strides={b.stride()}")
+    print(f"[bf16_gemm_sm100] Input out: shape={out.shape}, strides={out.stride()}")
+    
     runners = []
     if _match_sm_version(a.device, ["100"]):
         runners.append(get_gemm_sm100_module_cutlass_bf16().cutlass_bf16_gemm_runner())
@@ -605,6 +621,10 @@ def bf16_gemm_sm100(
     )
 
     inputs = [a, b, out, workspace_buffer]
+    print(f"[bf16_gemm_sm100] About to call tuner.choose_one with inputs:")
+    for i, inp in enumerate(inputs):
+        print(f"  inputs[{i}]: shape={inp.shape}, strides={inp.stride()}")
+    
     runner, tactic = tuner.choose_one(
         "bf16_gemm",
         runners,

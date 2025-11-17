@@ -112,6 +112,20 @@ void bf16_bmm_impl(TensorView mat1, TensorView mat2, TensorView out, TensorView 
     TVM_FFI_LOG_AND_THROW(NotImplementedError) << "mat1 must be a matrix or a batch of matrices";
   }
 
+  std::cout << "[BF16 C++] mat1: shape=[";
+  for (int i = 0; i < mat1.ndim(); i++) std::cout << mat1.size(i) << (i < mat1.ndim()-1 ? ", " : "");
+  std::cout << "], strides=[";
+  for (int i = 0; i < mat1.ndim(); i++) std::cout << mat1.stride(i) << (i < mat1.ndim()-1 ? ", " : "");
+  std::cout << "]" << std::endl;
+  
+  std::cout << "[BF16 C++] mat2: shape=[";
+  for (int i = 0; i < mat2.ndim(); i++) std::cout << mat2.size(i) << (i < mat2.ndim()-1 ? ", " : "");
+  std::cout << "], strides=[";
+  for (int i = 0; i < mat2.ndim(); i++) std::cout << mat2.stride(i) << (i < mat2.ndim()-1 ? ", " : "");
+  std::cout << "]" << std::endl;
+  
+  std::cout << "[BF16 C++] Extracted dimensions: m=" << m << ", n=" << n << ", k=" << k << ", b=" << b << std::endl;
+
   if (tactic == -1) {
     tactic = 0;
   }
@@ -143,6 +157,18 @@ void bf16_bmm_impl(TensorView mat1, TensorView mat2, TensorView out, TensorView 
 
 void bf16_gemm(TensorView mat1, TensorView mat2, TensorView out, TensorView workspace_buffer,
                int64_t tactic) {
+  std::cout << "[bf16_gemm entry] mat1: shape=[";
+  for (int i = 0; i < mat1.ndim(); i++) std::cout << mat1.size(i) << (i < mat1.ndim()-1 ? ", " : "");
+  std::cout << "], strides=[";
+  for (int i = 0; i < mat1.ndim(); i++) std::cout << mat1.stride(i) << (i < mat1.ndim()-1 ? ", " : "");
+  std::cout << "], data_ptr=" << mat1.data_ptr() << std::endl;
+  
+  std::cout << "[bf16_gemm entry] mat2: shape=[";
+  for (int i = 0; i < mat2.ndim(); i++) std::cout << mat2.size(i) << (i < mat2.ndim()-1 ? ", " : "");
+  std::cout << "], strides=[";
+  for (int i = 0; i < mat2.ndim(); i++) std::cout << mat2.stride(i) << (i < mat2.ndim()-1 ? ", " : "");
+  std::cout << "], data_ptr=" << mat2.data_ptr() << std::endl;
+  
   bf16_bmm_impl(mat1, mat2, out, workspace_buffer, tactic);
 }
 

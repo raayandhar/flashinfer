@@ -29,6 +29,7 @@
 #include "cutlass/numeric_conversion.h"
 #include "flashinfer/arch_condition.h"
 #include "flashinfer/cutlass_utils.cuh"
+#include "flashinfer/exception.h"
 
 #ifdef __GNUC__  // Check if the compiler is GCC or Clang
 #pragma GCC diagnostic pop
@@ -136,6 +137,12 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   auto stride_B = cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(n, k, b));
   auto stride_C = cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(m, n, b));
   auto stride_D = cutlass::make_cute_packed_stride(StrideD{}, cute::make_shape(m, n, b));
+
+  std::cout << "[BF16 CUTLASS] m=" << m << ", n=" << n << ", k=" << k << ", b=" << b << std::endl;
+  std::cout << "[BF16 CUTLASS] Computing strides for shapes: A(" << m << "," << k << "," << b 
+            << "), B(" << n << "," << k << "," << b << ")" << std::endl;
+  std::cout << "[BF16 CUTLASS] stride_A: " << stride_A << std::endl;
+  std::cout << "[BF16 CUTLASS] stride_B: " << stride_B << std::endl;
 
   typename Gemm::Arguments arguments{
       cutlass::gemm::GemmUniversalMode::kGemm,

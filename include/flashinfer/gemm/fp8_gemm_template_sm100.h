@@ -175,6 +175,12 @@ size_t genericFp8GemmKernelLauncherSm100(__nv_fp8_e4m3 const* A, __nv_fp8_e4m3 c
   StrideC stride_C = cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(m, n, b));
   StrideD stride_D = cutlass::make_cute_packed_stride(StrideD{}, cute::make_shape(m, n, b));
 
+  std::cout << "[FP8 CUTLASS] m=" << m << ", n=" << n << ", k=" << k << ", b=" << b << std::endl;
+  std::cout << "[FP8 CUTLASS] Computing strides for shapes: A(" << m << "," << k << "," << b 
+            << "), B(" << n << "," << k << "," << b << ")" << std::endl;
+  std::cout << "[FP8 CUTLASS] stride_A: " << stride_A << std::endl;
+  std::cout << "[FP8 CUTLASS] stride_B: " << stride_B << std::endl;
+
   typename Gemm::Arguments arguments{cutlass::gemm::GemmUniversalMode::kGemm,
                                      {m, n, k, b},
                                      {reinterpret_cast<cutlass::float_e4m3_t const*>(A), stride_A,

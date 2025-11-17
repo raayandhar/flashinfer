@@ -23,7 +23,10 @@ def test_bmm_bf16(b, m, n, k, res_dtype):
     torch.manual_seed(7)
     input = torch.randn([b, m, k], device="cuda", dtype=torch.bfloat16)
     mat2 = torch.randn([b, n, k], device="cuda", dtype=torch.bfloat16).transpose(-2, -1)
+    print(f"Right before doing reference bmm: {input.shape}, {mat2.shape}. We have (b, m, n, k) = ({b}, {m}, {n}, {k})")
     reference = torch.bmm(input, mat2)
+    print(f"We've passed the reference bmm. {reference.shape}")
+
 
     out = torch.empty([b, m, n], device="cuda", dtype=res_dtype)
     with autotune():
