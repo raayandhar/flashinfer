@@ -385,6 +385,17 @@ def mm_bf16(
 
 
 @supported_compute_capability([100])
+def _cudnn_bmm_bf16_requirement(
+    A: torch.Tensor,
+    B: torch.Tensor,
+    out: Optional[torch.Tensor] = None,
+    out_dtype: torch.dtype = torch.bfloat16,
+    backend: Literal["cudnn", "cutlass"] = "cudnn",
+):
+    _check_cudnn_availability()
+    return True
+
+@supported_compute_capability([100])
 def _cutlass_bmm_bf16_requirement(
     A: torch.Tensor,
     B: torch.Tensor,
@@ -392,8 +403,6 @@ def _cutlass_bmm_bf16_requirement(
     out_dtype: torch.dtype = torch.bfloat16,
     backend: Literal["cutlass"] = "cutlass",
 ):
-    _validate_bf16_output_dtype(out_dtype)
-
     return True
 
 
@@ -402,7 +411,7 @@ def _check_bmm_bf16_problem_size(
     B: torch.Tensor,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cutlass"] = "cutlass",
+    backend: Literal["cutlass", "cudnn"] = "cutlass",
 ):
     if A.dtype != torch.bfloat16:
         raise ValueError(
@@ -412,6 +421,8 @@ def _check_bmm_bf16_problem_size(
         raise ValueError(
             f"Second tensor has unsupported dtype {B.dtype}. Only bfloat16 is supported."
         )
+
+    _validate_bf16_output_dtype(out_dtype)
 
     return True
 
@@ -427,11 +438,14 @@ def _heuristic_func_bmm_bf16(
     heuristic_backends = []
     if "cutlass" in suitable_backends:
         heuristic_backends.append("cutlass")
+    if CUDNN_AVAILABLE and "cudnn" in suitable_backends:
+        heuristic_backends.append("cudnn")
     return heuristic_backends
 
 
 @backend_requirement(
     {
+        "cudnn": _cudnn_bmm_bf16_requirement,
         "cutlass": _cutlass_bmm_bf16_requirement,
     },
     common_check=_check_bmm_bf16_problem_size,
@@ -443,7 +457,7 @@ def bmm_bf16(
     B: torch.Tensor,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cutlass"] = "cutlass",
+    backend: Literal["cudnn", "cutlass", "auto"] = "cutlass",
 ) -> torch.Tensor:
     r"""BMM BF16
 
@@ -461,8 +475,10 @@ def bmm_bf16(
     out_dtype: torch.dtype
         Output dtype, bf16 (default) or fp16.
 
-    backend: Literal["cutlass"]
-        Backend to use, defaults to "cutlass".
+    backend: Literal["cudnn", "cutlass", "auto"]
+        The backend to use for the operation. Defaults to ``"cutlass"``.
+        ``"auto"`` allows selecting the best tactic from all available backends when autotune is enabled.
+
 
     Returns
     -------
@@ -1575,7 +1591,7 @@ def _check_cudnn_availability():
     """Check if cuDNN is available and raise exception if not."""
     if not CUDNN_AVAILABLE:
         raise RuntimeError(
-            "cuDNN is not available. Please install cuDNN to use FP8 GEMM functions. "
+            "cuDNN is not available. Please install cuDNN to use FP8 and BF16 GEMM functions. "
             "You can install it with: pip install nvidia-cudnn-cu12 nvidia-cudnn-frontend"
         )
 
