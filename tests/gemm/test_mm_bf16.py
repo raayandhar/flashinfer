@@ -6,13 +6,22 @@ from flashinfer import autotune, mm_bf16
 from flashinfer.utils import get_compute_capability
 
 
+def _is_cudnn_available():
+    try:
+        import cudnn
+
+        return True
+    except ImportError:
+        return False
+
+
 @pytest.mark.parametrize("m", [1, 8, 16, 32, 64])
 @pytest.mark.parametrize("n", [1024, 2048, 4096])
 @pytest.mark.parametrize("k", [1024, 2048, 3072])
 @pytest.mark.parametrize("res_dtype", [torch.bfloat16, torch.float16])
 @pytest.mark.parametrize("enable_bias", [True, False])
 @pytest.mark.parametrize("pdl", [True, False])
-@pytest.mark.parametrize("backend", ["cutlass", "tgv"])
+@pytest.mark.parametrize("backend", ["cutlass", "tgv", "cudnn"])
 def test_mm_bf16(
     m: int,
     n: int,
@@ -41,6 +50,14 @@ def test_mm_bf16(
         pytest.skip(
             "mm_bf16 with TGV backend does not support specifying non-bfloat16 result dtypes."
         )
+
+    if backend == "cudnn":
+        if not _is_cudnn_available():
+            pytest.skip("cuDNN not available")
+        if not mm_bf16.is_backend_supported("cudnn", compute_capability_number):
+            pytest.skip(f"cuDNN backend not supported on sm{compute_capability_number}")
+        if enable_bias or pdl:
+            pytest.skip("cuDNN backend does not support bias or pdl arguments.")
 
     torch.manual_seed(42)
     input = torch.randn([m, k], device="cuda", dtype=torch.bfloat16)
