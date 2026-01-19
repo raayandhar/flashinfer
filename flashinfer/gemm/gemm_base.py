@@ -554,13 +554,9 @@ def bmm_bf16(
     if backend == "auto":
         backends = bmm_bf16.suitable_auto_backends
     elif backend == "cutlass":
-        backends = _heuristic_func_bmm_bf16(
-            ["cutlass"], A, B, out, out_dtype, backend
-        )
+        backends = _heuristic_func_bmm_bf16(["cutlass"], A, B, out, out_dtype, backend)
     elif backend == "cudnn":
-        backends = _heuristic_func_bmm_bf16(
-            ["cudnn"], A, B, out, out_dtype, backend
-        )
+        backends = _heuristic_func_bmm_bf16(["cudnn"], A, B, out, out_dtype, backend)
     else:
         backends = [backend]
 
@@ -2104,9 +2100,7 @@ def _cudnn_gemm_fp8_runner():
 
 
 @functools.cache
-def build_cudnn_gemm_bf16_graph(
-    a_shape, a_stride, b_shape, b_stride, o_type, device
-):
+def build_cudnn_gemm_bf16_graph(a_shape, a_stride, b_shape, b_stride, o_type, device):
     """Build a cuDNN graph for BF16/FP16 output GEMM."""
     _check_cudnn_availability()
 
@@ -2199,6 +2193,7 @@ def _cudnn_gemm_bf16_runner():
             return out
 
     return CudnnBf16GemmRunner()
+
 
 def _get_real_fp4_shape_from_packed_uint8(packed_fp4_tensor):
     # the FP4 data are packed into uint8, we need to expand the shape and stride information to get the real shape and stride to be used in the cuDNN graph.
