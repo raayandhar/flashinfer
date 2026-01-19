@@ -5,6 +5,13 @@ import torch.nn.functional as F
 from flashinfer import autotune, mm_bf16
 from flashinfer.utils import get_compute_capability
 
+try:
+    import cudnn  # type: ignore
+
+    CUDNN_AVAILABLE = True
+except Exception:
+    CUDNN_AVAILABLE = False
+
 
 @pytest.mark.parametrize("m", [1, 8, 16, 32, 64])
 @pytest.mark.parametrize("n", [1024, 2048, 4096])
@@ -12,7 +19,7 @@ from flashinfer.utils import get_compute_capability
 @pytest.mark.parametrize("res_dtype", [torch.bfloat16, torch.float16])
 @pytest.mark.parametrize("enable_bias", [True, False])
 @pytest.mark.parametrize("pdl", [True, False])
-@pytest.mark.parametrize("backend", ["cutlass", "tgv"])
+@pytest.mark.parametrize("backend", ["cutlass", "tgv", "cudnn"])
 def test_mm_bf16(
     m: int,
     n: int,
@@ -30,9 +37,18 @@ def test_mm_bf16(
             f"Detected sm{compute_capability_number}."
         )
 
+    if not mm_bf16.is_backend_supported(backend, compute_capability_number):
+        pytest.skip(f"{backend} backend not supported on current compute capability.")
+    if backend == "cudnn" and not CUDNN_AVAILABLE:
+        pytest.skip("cudnn backend selected but cuDNN is not available.")
+
     if backend == "cutlass" and (enable_bias or pdl):
         pytest.skip(
             "mm_bf16 with CUTLASS backend does not support bias or pdl arguments."
+        )
+    if backend == "cudnn" and (enable_bias or pdl):
+        pytest.skip(
+            "mm_bf16 with cuDNN backend does not support bias or pdl arguments."
         )
     if res_dtype == torch.float16 and backend == "tgv":
         pytest.skip(
