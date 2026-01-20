@@ -200,6 +200,8 @@ def gen_gemm_sm100_module_cutlass_bf16() -> JitSpec:
     with open(jit_env.FLASHINFER_CSRC_DIR / "bf16_gemm_cutlass.jinja") as f:
         kernel_inst_templ = jinja2.Template(f.read())
         dtype_list = ["__nv_bfloat16", "half"]
+
+        # Standard tile configs
         cta_m_n_k_list = [
             (64, 64, 128),
             (64, 128, 128),
@@ -219,6 +221,28 @@ def gen_gemm_sm100_module_cutlass_bf16() -> JitSpec:
                     cta_m=cta_m,
                     cta_n=cta_n,
                     cta_k=cta_k,
+                    low_latency=False,
+                )
+                write_if_different(dest_path, source)
+
+        # Low-latency tile config for small batch sizes (m <= 32)
+        # Uses 128x16x128 tile which already exists in CutlassTileConfigSM100
+        low_latency_cta_list = [
+            (128, 16, 128),
+        ]
+        for cta_m, cta_n, cta_k in low_latency_cta_list:
+            for dtype in dtype_list:
+                dest_path = (
+                    gen_directory
+                    / f"bf16_gemm_cutlass_low_latency_{dtype}_{cta_m}_{cta_n}_{cta_k}.cu"
+                )
+                source_paths.append(dest_path)
+                source = kernel_inst_templ.render(
+                    type=dtype,
+                    cta_m=cta_m,
+                    cta_n=cta_n,
+                    cta_k=cta_k,
+                    low_latency=True,
                 )
                 write_if_different(dest_path, source)
 

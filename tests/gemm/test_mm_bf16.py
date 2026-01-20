@@ -58,5 +58,44 @@ def test_mm_bf16(
     assert cos_sim > 0.99
 
 
+@pytest.mark.parametrize("m", [1, 4, 8, 16, 32])
+@pytest.mark.parametrize("n", [128, 256, 512, 1024, 2048])
+@pytest.mark.parametrize("k", [256, 512, 1024])
+@pytest.mark.parametrize("res_dtype", [torch.bfloat16, torch.float16])
+def test_mm_bf16_small_batch_cutlass(
+    m: int,
+    n: int,
+    k: int,
+    res_dtype: torch.dtype,
+):
+    """Test specifically for small-batch-size optimization (m <= 32) with CUTLASS backend.
+
+    This test exercises the low-latency kernel path which uses the transpose trick
+    to improve CTA utilization for small M values.
+    """
+    compute_capability = get_compute_capability(torch.device(device="cuda"))
+    compute_capability_number = compute_capability[0] * 10 + compute_capability[1]
+    if not mm_bf16.is_compute_capability_supported(compute_capability_number):
+        pytest.skip(
+            f"mm_bf16 not supported on current compute capability."
+            f"Detected sm{compute_capability_number}."
+        )
+
+    torch.manual_seed(42)
+    input = torch.randn([m, k], device="cuda", dtype=torch.bfloat16)
+    mat2 = torch.randn([n, k], device="cuda", dtype=torch.bfloat16)
+
+    reference = torch.mm(input, mat2.T)
+
+    out = torch.empty([m, n], device="cuda", dtype=res_dtype)
+    with autotune():
+        mm_bf16(input, mat2.T, None, False, out, res_dtype, "cutlass")
+
+    cos_sim = F.cosine_similarity(
+        reference.reshape(-1).float(), out.reshape(-1).float(), dim=0
+    )
+    assert cos_sim > 0.99
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

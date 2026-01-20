@@ -36,6 +36,7 @@
 
 #include <cstddef>
 #include <stdexcept>
+#include <utility>
 
 #include "cutlass/bfloat16.h"
 #include "flashinfer/gemm/cutlass_gemm_configs.h"
@@ -177,6 +178,147 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   return gemm.get_workspace_size(arguments);
 }
 
+/*!
+ * \brief Low-latency BF16 GEMM kernel launcher for small batch sizes (M <= 32).
+ *
+ * For small batch sizes (M) like 8, 16, 32, the standard GEMM has wasted work because
+ * the minimum M tile size is typically 64 due to tcgen05.mma shapes. This causes wasted
+ * work in the M dimension and fewer CTAs doing useful work.
+ *
+ * This kernel uses a transpose trick: instead of computing D = A @ B, we compute
+ * D^T = B^T @ A^T. This allows using a smaller N tile size and more CTAs doing work.
+ * We transpose by swapping row-major and column-major layouts:
+ *   A: (m, k) row major    => (k, m) column major
+ *   B: (k, n) column major => (n, k) row major
+ *   D: (m, n) row major    => (n, m) column major
+ *
+ * The output is written as column-major (n, m), which matches the original row-major
+ * (m, n) memory layout.
+ */
+template <typename T, typename arch, int32_t CTA_M_, int32_t CTA_N_, int32_t CTA_K_>
+size_t genericBf16GemmKernelLauncherSm100LowLatency(__nv_bfloat16 const* A, __nv_bfloat16 const* B,
+                                                    T* D, int m, int n, int k, int b,
+                                                    CutlassGemmConfig config, char* workspacePtr,
+                                                    size_t const workspaceBytes,
+                                                    cudaStream_t stream) {
+  using namespace cute;
+
+  // Transpose trick: swap m<->n, A<->B
+  // The output is written as column-major (n, m) which matches original row-major (m, n)
+  std::swap(m, n);
+  std::swap(A, B);
+
+  using ElementA = cutlass::bfloat16_t;
+  using LayoutA = cutlass::layout::RowMajor;
+  constexpr int AlignmentA = 128 / cutlass::sizeof_bits<ElementA>::value;
+
+  using ElementB = cutlass::bfloat16_t;
+  using LayoutB = cutlass::layout::ColumnMajor;
+  constexpr int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value;
+
+  using ElementOutput_ =
+      typename cutlass::platform::conditional<cutlass::platform::is_same<T, half>::value,
+                                              cutlass::half_t, T>::type;
+#ifdef ENABLE_BF16
+  using ElementOutput = typename cutlass::platform::conditional<
+      cutlass::platform::is_same<ElementOutput_, __nv_bfloat16>::value, cutlass::bfloat16_t,
+      ElementOutput_>::type;
+#else
+  using ElementOutput = ElementOutput_;
+#endif
+
+  using ElementC = ElementOutput;
+  using LayoutC = cutlass::layout::ColumnMajor;
+  constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;
+
+  using ElementD = ElementC;
+  using LayoutD = LayoutC;
+  constexpr int AlignmentD = AlignmentC;
+
+  using ElementAccumulator = float;
+  using ElementCompute = float;
+  using ArchTag = cutlass::arch::Sm100;
+  using OperatorClass = cutlass::arch::OpClassTensorOp;
+
+  // Use fixed tile shape for low-latency kernel (no SMTypeAdapter scaling)
+  using TileShape = cute::Shape<cute::Int<CTA_M_>, cute::Int<CTA_N_>, cute::Int<CTA_K_>>;
+
+  // Fixed 1x1x1 cluster shape for low-latency
+  using ClusterShape = cute::Shape<_1, _1, _1>;
+
+  // Single-SM schedules for low latency
+  using EpilogueSchedule = cutlass::epilogue::TmaWarpSpecialized1Sm;
+  using MainloopSchedule = cutlass::gemm::KernelTmaWarpSpecialized1SmSm100;
+  using EpilogueTileType = cutlass::epilogue::collective::EpilogueTileAuto;
+
+  using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
+      ArchTag, OperatorClass, TileShape, ClusterShape, EpilogueTileType, ElementAccumulator,
+      ElementCompute, ElementC, LayoutC, AlignmentC, ElementD, LayoutD, AlignmentD,
+      EpilogueSchedule>::CollectiveOp;
+
+  using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
+      ArchTag, OperatorClass, ElementA, LayoutA, AlignmentA, ElementB, LayoutB, AlignmentB,
+      ElementAccumulator, TileShape, ClusterShape,
+      cutlass::gemm::collective::StageCountAutoCarveout<static_cast<int>(
+          sizeof(typename CollectiveEpilogue::SharedStorage))>,
+      MainloopSchedule>::CollectiveOp;
+
+  using GemmKernel = cutlass::gemm::kernel::GemmUniversal<Shape<int, int, int, int>,
+                                                          CollectiveMainloop, CollectiveEpilogue>;
+
+  using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
+
+  using StrideA = typename Gemm::GemmKernel::StrideA;
+  using StrideB = typename Gemm::GemmKernel::StrideB;
+  using StrideC = typename Gemm::GemmKernel::StrideC;
+  using StrideD = typename Gemm::GemmKernel::StrideD;
+
+  auto stride_A = cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(m, k, b));
+  auto stride_B = cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(n, k, b));
+  auto stride_C = cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(m, n, b));
+  auto stride_D = cutlass::make_cute_packed_stride(StrideD{}, cute::make_shape(m, n, b));
+
+  typename Gemm::Arguments arguments{
+      cutlass::gemm::GemmUniversalMode::kGemm,
+      {m, n, k, b},
+      {reinterpret_cast<ElementA const*>(A), stride_A, reinterpret_cast<ElementB const*>(B),
+       stride_B},
+      {{}, nullptr, stride_C, reinterpret_cast<ElementOutput*>(D), stride_D}};
+
+  auto& fusion_args = arguments.epilogue.thread;
+  fusion_args.alpha = 1.0f;
+  fusion_args.beta = 0.0f;
+
+  Gemm gemm;
+
+  // Return workspace size
+  if (!A && !B && !D) {
+    return gemm.get_workspace_size(arguments);
+  }
+
+  if (gemm.get_workspace_size(arguments) > workspaceBytes) {
+    throw std::runtime_error("[Bf16 Gemm Runner LowLatency] insufficient workspace");
+  }
+
+  auto can_implement = gemm.can_implement(arguments);
+  if (can_implement != cutlass::Status::kSuccess) {
+    throw std::runtime_error(
+        "[Bf16 Gemm Runner LowLatency] cutlass kernel not implemented given the params");
+  }
+
+  auto initStatus = gemm.initialize(arguments, workspacePtr);
+  if (initStatus != cutlass::Status::kSuccess) {
+    throw std::runtime_error("[Bf16 Gemm Runner LowLatency] failed to initialize");
+  }
+
+  auto runStatus = gemm.run(stream);
+  if (runStatus != cutlass::Status::kSuccess) {
+    throw std::runtime_error("[Bf16 Gemm Runner LowLatency] failed to run");
+  }
+
+  return gemm.get_workspace_size(arguments);
+}
+
 }  // namespace gemm
 }  // namespace flashinfer
 
@@ -185,6 +327,13 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   template size_t genericBf16GemmKernelLauncherSm100<                                          \
       RET_TYPE, cutlass::arch::Sm100, TILE_M, TILE_N, TILE_K,                                  \
       cute::Shape<cute::Int<CGA_M_>, cute::Int<CGA_N_>, cute::Int<CGA_K_>>, SM_TYPE>(          \
+      __nv_bfloat16 const* A, __nv_bfloat16 const* B, RET_TYPE* D, int m, int n, int k, int b, \
+      CutlassGemmConfig config, char* workspacePtr, size_t const workspaceBytes,               \
+      cudaStream_t stream);
+
+#define INSTANCE_BF16_GEMM_TEMPLATE_SM100_LOW_LATENCY(RET_TYPE, TILE_M, TILE_N, TILE_K)        \
+  template size_t genericBf16GemmKernelLauncherSm100LowLatency<RET_TYPE, cutlass::arch::Sm100, \
+                                                               TILE_M, TILE_N, TILE_K>(        \
       __nv_bfloat16 const* A, __nv_bfloat16 const* B, RET_TYPE* D, int m, int n, int k, int b, \
       CutlassGemmConfig config, char* workspacePtr, size_t const workspaceBytes,               \
       cudaStream_t stream);
