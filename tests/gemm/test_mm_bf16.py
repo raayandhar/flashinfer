@@ -58,5 +58,32 @@ def test_mm_bf16(
     assert cos_sim > 0.99
 
 
+@pytest.mark.parametrize("m", [1, 8, 16, 32])
+@pytest.mark.parametrize("n", [256, 1024])
+@pytest.mark.parametrize("k", [256])
+def test_mm_bf16_small_m_cutlass(m: int, n: int, k: int):
+    compute_capability = get_compute_capability(torch.device(device="cuda"))
+    compute_capability_number = compute_capability[0] * 10 + compute_capability[1]
+    if not mm_bf16.is_compute_capability_supported(compute_capability_number):
+        pytest.skip(
+            f"mm_bf16 not supported on current compute capability."
+            f"Detected sm{compute_capability_number}."
+        )
+
+    torch.manual_seed(123)
+    a = torch.randn([m, k], device="cuda", dtype=torch.bfloat16)
+    b = torch.randn([n, k], device="cuda", dtype=torch.bfloat16)
+    reference = torch.mm(a, b.T)
+
+    out = torch.empty([m, n], device="cuda", dtype=torch.bfloat16)
+    with autotune():
+        mm_bf16(a, b.T, out=out, out_dtype=torch.bfloat16, backend="cutlass")
+
+    cos_sim = torch.nn.functional.cosine_similarity(
+        reference.reshape(-1), out.reshape(-1), dim=0
+    )
+    assert cos_sim > 0.99
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

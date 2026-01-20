@@ -177,12 +177,138 @@ size_t genericBf16GemmKernelLauncherSm100(__nv_bfloat16 const* A, __nv_bfloat16 
   return gemm.get_workspace_size(arguments);
 }
 
+template <typename T, typename arch, int32_t CTA_M_, int32_t CTA_N_, int32_t CTA_K_,
+          typename ClusterShape_, typename XSM_>
+size_t genericBf16GemmKernelLauncherSm100Swap(__nv_bfloat16 const* A, __nv_bfloat16 const* B, T* D,
+                                              int m, int n, int k, int b, CutlassGemmConfig config,
+                                              char* workspacePtr, size_t const workspaceBytes,
+                                              cudaStream_t stream) {
+  using namespace cute;
+
+  // Compute D^T = B^T @ A^T to reduce wasted work for small M.
+  int m_tr = n;
+  int n_tr = m;
+  auto A_swapped = B;
+  auto B_swapped = A;
+
+  using ElementA = cutlass::bfloat16_t;
+  using LayoutA = cutlass::layout::RowMajor;
+  constexpr int AlignmentA = 128 / cutlass::sizeof_bits<ElementA>::value;
+
+  using ElementB = cutlass::bfloat16_t;
+  using LayoutB = cutlass::layout::ColumnMajor;
+  constexpr int AlignmentB = 128 / cutlass::sizeof_bits<ElementB>::value;
+
+  using ElementOutput_ =
+      typename cutlass::platform::conditional<cutlass::platform::is_same<T, half>::value,
+                                              cutlass::half_t, T>::type;
+#ifdef ENABLE_BF16
+  using ElementOutput = typename cutlass::platform::conditional<
+      cutlass::platform::is_same<ElementOutput_, __nv_bfloat16>::value, cutlass::bfloat16_t,
+      ElementOutput_>::type;
+#else
+  using ElementOutput = ElementOutput_;
+#endif
+
+  using ElementC = ElementOutput;
+  using LayoutC = cutlass::layout::ColumnMajor;
+  constexpr int AlignmentC = 128 / cutlass::sizeof_bits<ElementC>::value;
+
+  using ElementD = ElementC;
+  using LayoutD = LayoutC;
+  constexpr int AlignmentD = AlignmentC;
+
+  using ElementAccumulator = float;
+  using ElementCompute = float;
+  using ArchTag = cutlass::arch::Sm100;
+  using OperatorClass = cutlass::arch::OpClassTensorOp;
+  using TileShape = cute::Shape<cute::Int<CTA_M_ * SMTypeAdapter<XSM_>::Scale>, cute::Int<CTA_N_>,
+                                cute::Int<CTA_K_>>;
+
+  using ClusterShape = ClusterShape_;
+  using EpilogueSchedule = typename SMTypeAdapter<XSM_>::EpilogueSchedule;
+  using MainloopSchedule = typename SMTypeAdapter<XSM_>::MainloopSchedule;
+  using EpilogueTileType = cutlass::epilogue::collective::EpilogueTileAuto;
+
+  using CollectiveEpilogue = typename cutlass::epilogue::collective::CollectiveBuilder<
+      ArchTag, OperatorClass, TileShape, ClusterShape, EpilogueTileType, ElementAccumulator,
+      ElementCompute, ElementC, LayoutC, AlignmentC, ElementD, LayoutD, AlignmentD,
+      EpilogueSchedule>::CollectiveOp;
+
+  using CollectiveMainloop = typename cutlass::gemm::collective::CollectiveBuilder<
+      ArchTag, OperatorClass, ElementA, LayoutA, AlignmentA, ElementB, LayoutB, AlignmentB,
+      ElementAccumulator, TileShape, ClusterShape,
+      cutlass::gemm::collective::StageCountAutoCarveout<static_cast<int>(
+          sizeof(typename CollectiveEpilogue::SharedStorage))>,
+      MainloopSchedule>::CollectiveOp;
+
+  using GemmKernel = cutlass::gemm::kernel::GemmUniversal<Shape<int, int, int, int>,
+                                                          CollectiveMainloop, CollectiveEpilogue>;
+
+  using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
+
+  using StrideA = typename Gemm::GemmKernel::StrideA;
+  using StrideB = typename Gemm::GemmKernel::StrideB;
+  using StrideC = typename Gemm::GemmKernel::StrideC;
+  using StrideD = typename Gemm::GemmKernel::StrideD;
+
+  auto stride_A = cutlass::make_cute_packed_stride(StrideA{}, cute::make_shape(m_tr, k, b));
+  auto stride_B = cutlass::make_cute_packed_stride(StrideB{}, cute::make_shape(n_tr, k, b));
+  auto stride_C = cutlass::make_cute_packed_stride(StrideC{}, cute::make_shape(m_tr, n_tr, b));
+  auto stride_D = cutlass::make_cute_packed_stride(StrideD{}, cute::make_shape(m_tr, n_tr, b));
+
+  typename Gemm::Arguments arguments{
+      cutlass::gemm::GemmUniversalMode::kGemm,
+      {m_tr, n_tr, k, b},
+      {reinterpret_cast<ElementA const*>(A_swapped), stride_A,
+       reinterpret_cast<ElementB const*>(B_swapped), stride_B},
+      {{}, nullptr, stride_C, reinterpret_cast<ElementOutput*>(D), stride_D}};
+
+  auto& fusion_args = arguments.epilogue.thread;
+  fusion_args.alpha = 1.0f;
+  fusion_args.beta = 0.0f;
+
+  Gemm gemm;
+
+  // Return workspace size
+  if (!A && !B && !D) {
+    return gemm.get_workspace_size(arguments);
+  }
+
+  if (gemm.get_workspace_size(arguments) > workspaceBytes) {
+    throw std::runtime_error("[Bf16 Gemm Runner] insufficient workspace");
+  }
+
+  auto can_implement = gemm.can_implement(arguments);
+  if (can_implement != cutlass::Status::kSuccess) {
+    throw std::runtime_error("[Bf16 Gemm Runner] cutlass kernel not implemented given the params");
+  }
+
+  auto initStatus = gemm.initialize(arguments, workspacePtr);
+  if (initStatus != cutlass::Status::kSuccess) {
+    throw std::runtime_error("[Bf16 Gemm Runner] failed to initialize");
+  }
+
+  auto runStatus = gemm.run(stream);
+  if (runStatus != cutlass::Status::kSuccess) {
+    throw std::runtime_error("[Bf16 Gemm Runner] failed to run");
+  }
+
+  return gemm.get_workspace_size(arguments);
+}
+
 }  // namespace gemm
 }  // namespace flashinfer
 
 #define INSTANCE_BF16_GEMM_TEMPLATE_SM100(RET_TYPE, TILE_M, TILE_N, TILE_K, CGA_M_, CGA_N_,    \
                                           CGA_K_, SM_TYPE)                                     \
   template size_t genericBf16GemmKernelLauncherSm100<                                          \
+      RET_TYPE, cutlass::arch::Sm100, TILE_M, TILE_N, TILE_K,                                  \
+      cute::Shape<cute::Int<CGA_M_>, cute::Int<CGA_N_>, cute::Int<CGA_K_>>, SM_TYPE>(          \
+      __nv_bfloat16 const* A, __nv_bfloat16 const* B, RET_TYPE* D, int m, int n, int k, int b, \
+      CutlassGemmConfig config, char* workspacePtr, size_t const workspaceBytes,               \
+      cudaStream_t stream);                                                                    \
+  template size_t genericBf16GemmKernelLauncherSm100Swap<                                      \
       RET_TYPE, cutlass::arch::Sm100, TILE_M, TILE_N, TILE_K,                                  \
       cute::Shape<cute::Int<CGA_M_>, cute::Int<CGA_N_>, cute::Int<CGA_K_>>, SM_TYPE>(          \
       __nv_bfloat16 const* A, __nv_bfloat16 const* B, RET_TYPE* D, int m, int n, int k, int b, \
