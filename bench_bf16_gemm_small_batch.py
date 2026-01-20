@@ -27,6 +27,7 @@ Usage:
 """
 
 import argparse
+import logging
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -34,6 +35,9 @@ import torch.nn.functional as F
 from flashinfer import mm_bf16, autotune
 from flashinfer.testing.utils import bench_gpu_time
 from flashinfer.utils import get_compute_capability
+
+# Suppress autotuner logging for cleaner output
+logging.getLogger("flashinfer.jit").setLevel(logging.WARNING)
 
 
 def check_correctness(m, n, k, out_dtype):
@@ -157,14 +161,12 @@ def main():
 
     out_dtype = torch.bfloat16 if args.out_dtype == "bfloat16" else torch.float16
 
-    print("\n" + "=" * 100)
-    print(
-        f"{'M':>6} | {'N':>6} | {'K':>6} | {'FlashInfer (us)':>15} | "
-        f"{'TFLOPs/s':>10} | {'Small Batch':>12}"
-        + (" | {'PyTorch (us)':>15} | {'Speedup':>8}" if args.compare_torch else "")
-        + (" | {'Cos Sim':>8}" if args.check_correctness else "")
-    )
-    print("=" * 100)
+    print("\nRunning benchmarks...")
+    if args.check_correctness:
+        print("Also checking correctness for each configuration...")
+
+    # Store all results
+    results = []
 
     for m in args.m_values:
         for n in args.n_values:
@@ -181,10 +183,14 @@ def main():
                     # Low-latency kernel used when 8 <= m <= 32
                     is_small_batch = "Yes" if 8 <= m <= 32 else "No"
 
-                    result_str = (
-                        f"{m:>6} | {n:>6} | {k:>6} | {median_us:>15.2f} | "
-                        f"{tflops:>10.2f} | {is_small_batch:>12}"
-                    )
+                    result = {
+                        "m": m,
+                        "n": n,
+                        "k": k,
+                        "flashinfer_us": median_us,
+                        "tflops": tflops,
+                        "small_batch": is_small_batch,
+                    }
 
                     # Compare with PyTorch if requested
                     if args.compare_torch:
@@ -193,23 +199,108 @@ def main():
                         )
                         torch_median_us = np.median(torch_measurements) * 1000
                         speedup = torch_median_us / median_us
-                        result_str += f" | {torch_median_us:>15.2f} | {speedup:>8.2f}x"
+                        result["torch_us"] = torch_median_us
+                        result["speedup"] = speedup
 
                     # Check correctness if requested
                     if args.check_correctness:
                         cos_sim = check_correctness(m, n, k, out_dtype)
-                        result_str += f" | {cos_sim:>8.4f}"
+                        result["cos_sim"] = cos_sim
 
-                    print(result_str)
+                    results.append(result)
+                    print(f"  Completed: M={m}, N={n}, K={k}")
 
                 except Exception as e:
-                    print(f"{m:>6} | {n:>6} | {k:>6} | ERROR: {e}")
+                    results.append({"m": m, "n": n, "k": k, "error": str(e)})
+                    print(f"  Error: M={m}, N={n}, K={k}: {e}")
 
-    print("=" * 100)
+    # Print all results at the end
+    print("\n" + "=" * 120)
+    print("BENCHMARK RESULTS")
+    print("=" * 120)
+
+    header = (
+        f"{'M':>6} | {'N':>6} | {'K':>6} | {'FlashInfer (us)':>15} | "
+        f"{'TFLOPs/s':>10} | {'Small Batch':>12}"
+    )
+    if args.compare_torch:
+        header += f" | {'PyTorch (us)':>15} | {'Speedup':>8}"
+    if args.check_correctness:
+        header += f" | {'Cos Sim':>8}"
+
+    print(header)
+    print("=" * 120)
+
+    for result in results:
+        if "error" in result:
+            print(
+                f"{result['m']:>6} | {result['n']:>6} | {result['k']:>6} | ERROR: {result['error']}"
+            )
+        else:
+            result_str = (
+                f"{result['m']:>6} | {result['n']:>6} | {result['k']:>6} | "
+                f"{result['flashinfer_us']:>15.2f} | {result['tflops']:>10.2f} | "
+                f"{result['small_batch']:>12}"
+            )
+            if args.compare_torch:
+                result_str += (
+                    f" | {result['torch_us']:>15.2f} | {result['speedup']:>8.2f}x"
+                )
+            if args.check_correctness:
+                result_str += f" | {result['cos_sim']:>8.4f}"
+            print(result_str)
+
+    print("=" * 120)
+
+    # Print summary statistics for small batch cases
+    small_batch_results = [
+        r for r in results if "error" not in r and r.get("small_batch") == "Yes"
+    ]
+    standard_results = [
+        r for r in results if "error" not in r and r.get("small_batch") == "No"
+    ]
+
+    if small_batch_results:
+        print("\n" + "=" * 120)
+        print("SUMMARY: Small Batch Cases (8 <= M <= 32)")
+        print("=" * 120)
+        avg_tflops_small = np.mean([r["tflops"] for r in small_batch_results])
+        median_tflops_small = np.median([r["tflops"] for r in small_batch_results])
+        print(f"Average TFLOPs/s: {avg_tflops_small:.2f}")
+        print(f"Median TFLOPs/s:  {median_tflops_small:.2f}")
+        print(f"Min TFLOPs/s:     {min(r['tflops'] for r in small_batch_results):.2f}")
+        print(f"Max TFLOPs/s:     {max(r['tflops'] for r in small_batch_results):.2f}")
+
+        if args.compare_torch:
+            avg_speedup = np.mean([r["speedup"] for r in small_batch_results])
+            print(f"\nAverage speedup vs PyTorch: {avg_speedup:.2f}x")
+
+    if standard_results:
+        print("\n" + "=" * 120)
+        print("SUMMARY: Standard Cases (M < 8 or M > 32)")
+        print("=" * 120)
+        avg_tflops_std = np.mean([r["tflops"] for r in standard_results])
+        median_tflops_std = np.median([r["tflops"] for r in standard_results])
+        print(f"Average TFLOPs/s: {avg_tflops_std:.2f}")
+        print(f"Median TFLOPs/s:  {median_tflops_std:.2f}")
+        print(f"Min TFLOPs/s:     {min(r['tflops'] for r in standard_results):.2f}")
+        print(f"Max TFLOPs/s:     {max(r['tflops'] for r in standard_results):.2f}")
+
+        if args.compare_torch:
+            avg_speedup = np.mean([r["speedup"] for r in standard_results])
+            print(f"\nAverage speedup vs PyTorch: {avg_speedup:.2f}x")
+
+    print("\n" + "=" * 120)
     print(
         "\nNote: 'Small Batch' indicates whether the low-latency kernel (8 <= m <= 32) was used."
     )
+    print(
+        "      If running on main branch without the optimization, 'Small Batch' shows expected behavior."
+    )
     print("      Values m < 8 use the standard kernel to meet alignment requirements.")
+    print(
+        "\nTo compare branches, run this script on both main and your branch, then compare the results above."
+    )
 
 
 if __name__ == "__main__":
