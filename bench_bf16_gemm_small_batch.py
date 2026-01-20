@@ -172,7 +172,7 @@ def main():
                 # Benchmark FlashInfer
                 try:
                     measurements = bench_bf16_gemm(
-                        m, n, k, out_dtype, num_iters=args.repeat_iters
+                        m, n, k, out_dtype, repeat_iters=args.repeat_iters
                     )
                     median_us = (
                         np.median(measurements) * 1000
@@ -189,7 +189,7 @@ def main():
                     # Compare with PyTorch if requested
                     if args.compare_torch:
                         torch_measurements = bench_torch_mm(
-                            m, n, k, out_dtype, num_iters=args.repeat_iters
+                            m, n, k, out_dtype, repeat_iters=args.repeat_iters
                         )
                         torch_median_us = np.median(torch_measurements) * 1000
                         speedup = torch_median_us / median_us
