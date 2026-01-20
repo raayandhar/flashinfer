@@ -1,7 +1,7 @@
 import argparse
 import itertools
 import logging
-from typing import List, Tuple
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -11,13 +11,15 @@ from flashinfer.testing.utils import bench_gpu_time
 from flashinfer.utils import get_compute_capability
 
 
-def parse_list(arg: str) -> List[int]:
-    return [int(x) for x in arg.split(",") if x]
-
-
 def suppress_autotune_logs():
-    logging.getLogger("flashinfer.jit").setLevel(logging.WARNING)
-    logging.getLogger("flashinfer.jit.autotuner").setLevel(logging.WARNING)
+    logging.disable(logging.CRITICAL)
+    for name in ["flashinfer.jit", "flashinfer.jit.autotuner"]:
+        lg = logging.getLogger(name)
+        lg.disabled = True
+        lg.propagate = False
+        lg.setLevel(logging.CRITICAL + 1)
+        for handler in list(lg.handlers):
+            lg.removeHandler(handler)
 
 
 def bench_shape(m: int, n: int, k: int, repeat_ms: int) -> Tuple[float, float]:
@@ -50,9 +52,27 @@ def main():
     parser = argparse.ArgumentParser(
         description="BF16 CUTLASS GEMM small-batch benchmark (transpose trick)."
     )
-    parser.add_argument("--m", type=str, default="1,2,4,8,16,32,64,128")
-    parser.add_argument("--n", type=str, default="512,1024,2048")
-    parser.add_argument("--k", type=str, default="512,1024,2048")
+    parser.add_argument(
+        "--m-values",
+        type=int,
+        nargs="+",
+        default=[1, 8, 16, 32, 64, 128],
+        help="M dimension values to benchmark",
+    )
+    parser.add_argument(
+        "--n-values",
+        type=int,
+        nargs="+",
+        default=[1536, 7168, 24576],
+        help="N dimension values to benchmark",
+    )
+    parser.add_argument(
+        "--k-values",
+        type=int,
+        nargs="+",
+        default=[1536, 7168],
+        help="K dimension values to benchmark",
+    )
     parser.add_argument(
         "--repeat_ms", type=int, default=200, help="Target total repeat time."
     )
@@ -62,9 +82,9 @@ def main():
     if compute_capability[0] != 10:
         print("Warning: intended for SM100/103; running anyway.")
 
-    ms = parse_list(args.m)
-    ns = parse_list(args.n)
-    ks = parse_list(args.k)
+    ms = args.m_values
+    ns = args.n_values
+    ks = args.k_values
 
     print("m     n      k      median_ms    TFLOP/s")
     print("----------------------------------------")
