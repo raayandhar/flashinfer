@@ -54,7 +54,7 @@ def check_correctness(m, n, k, out_dtype):
     return cos_sim.item()
 
 
-def bench_bf16_gemm(m, n, k, out_dtype, num_iters=100, warmup_iters=10):
+def bench_bf16_gemm(m, n, k, out_dtype, repeat_iters=100, warmup_iters=10):
     """Benchmark BF16 GEMM with given dimensions."""
     torch.manual_seed(42)
     a = torch.randn([m, k], device="cuda", dtype=torch.bfloat16)
@@ -71,12 +71,12 @@ def bench_bf16_gemm(m, n, k, out_dtype, num_iters=100, warmup_iters=10):
     # Benchmark
     measurements = bench_gpu_time(
         lambda: mm_bf16(a, b.T, None, False, out, out_dtype, "cutlass"),
-        num_iters=num_iters,
+        repeat_iters=repeat_iters,
     )
     return measurements
 
 
-def bench_torch_mm(m, n, k, out_dtype, num_iters=100, warmup_iters=10):
+def bench_torch_mm(m, n, k, out_dtype, repeat_iters=100, warmup_iters=10):
     """Benchmark PyTorch's native mm for comparison."""
     torch.manual_seed(42)
     a = torch.randn([m, k], device="cuda", dtype=torch.bfloat16)
@@ -91,7 +91,7 @@ def bench_torch_mm(m, n, k, out_dtype, num_iters=100, warmup_iters=10):
     # Benchmark
     measurements = bench_gpu_time(
         lambda: torch.mm(a, b.T),
-        num_iters=num_iters,
+        repeat_iters=repeat_iters,
     )
     return measurements
 
@@ -129,7 +129,7 @@ def main():
         help="Output dtype",
     )
     parser.add_argument(
-        "--num-iters", type=int, default=100, help="Number of benchmark iterations"
+        "--repeat-iters", type=int, default=100, help="Number of benchmark iterations"
     )
     parser.add_argument(
         "--check-correctness",
@@ -172,7 +172,7 @@ def main():
                 # Benchmark FlashInfer
                 try:
                     measurements = bench_bf16_gemm(
-                        m, n, k, out_dtype, num_iters=args.num_iters
+                        m, n, k, out_dtype, num_iters=args.repeat_iters
                     )
                     median_us = (
                         np.median(measurements) * 1000
@@ -189,7 +189,7 @@ def main():
                     # Compare with PyTorch if requested
                     if args.compare_torch:
                         torch_measurements = bench_torch_mm(
-                            m, n, k, out_dtype, num_iters=args.num_iters
+                            m, n, k, out_dtype, num_iters=args.repeat_iters
                         )
                         torch_median_us = np.median(torch_measurements) * 1000
                         speedup = torch_median_us / median_us
