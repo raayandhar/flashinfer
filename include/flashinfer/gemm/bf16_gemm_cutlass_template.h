@@ -104,12 +104,15 @@ size_t dispatchToArch(__nv_bfloat16 const* A, __nv_bfloat16 const* B, void* D, i
                       size_t const workspaceBytes, cudaStream_t stream) {
   using arch = cutlass::arch::Sm100;
 
-  // Small-batch optimization: use low-latency kernel for m <= 32
+  // Small-batch optimization: use low-latency kernel for 8 <= m <= 32
   // The low-latency kernel uses the transpose trick internally to enable better CTA utilization.
-  // We pass (B, A, n, m, k) to match the existing swap pattern in this function.
-  if (m <= 32) {
+  // We pass (A, B, m, n, k) directly - the low-latency kernel will do the swap internally.
+  // This is different from the standard path which pre-swaps (B, A, n, m).
+  // We require m >= 8 to ensure alignment (bfloat16 requires 8-element alignment, and after
+  // the transpose, m becomes the N dimension which must meet alignment requirements).
+  if (m >= 8 && m <= 32) {
     return genericBf16GemmKernelLauncherSm100LowLatency<T, arch, 128, 16, 128>(
-        B, A, static_cast<T*>(D), n, m, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
+        A, B, static_cast<T*>(D), m, n, k, b, gemmConfig, workspacePtr, workspaceBytes, stream);
   }
 
   switch (gemmConfig.tile_config_sm100) {

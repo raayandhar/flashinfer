@@ -178,7 +178,8 @@ def main():
                         np.median(measurements) * 1000
                     )  # Convert to microseconds
                     tflops = 2 * m * n * k * 1e-12 / (median_us * 1e-6)
-                    is_small_batch = "Yes" if m <= 32 else "No"
+                    # Low-latency kernel used when 8 <= m <= 32
+                    is_small_batch = "Yes" if 8 <= m <= 32 else "No"
 
                     result_str = (
                         f"{m:>6} | {n:>6} | {k:>6} | {median_us:>15.2f} | "
@@ -206,8 +207,9 @@ def main():
 
     print("=" * 100)
     print(
-        "\nNote: 'Small Batch' indicates whether the low-latency kernel (m <= 32) was used."
+        "\nNote: 'Small Batch' indicates whether the low-latency kernel (8 <= m <= 32) was used."
     )
+    print("      Values m < 8 use the standard kernel to meet alignment requirements.")
 
 
 if __name__ == "__main__":

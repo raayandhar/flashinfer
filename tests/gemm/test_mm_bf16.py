@@ -58,7 +58,7 @@ def test_mm_bf16(
     assert cos_sim > 0.99
 
 
-@pytest.mark.parametrize("m", [1, 4, 8, 16, 32])
+@pytest.mark.parametrize("m", [8, 16, 32])
 @pytest.mark.parametrize("n", [128, 256, 512, 1024, 2048])
 @pytest.mark.parametrize("k", [256, 512, 1024])
 @pytest.mark.parametrize("res_dtype", [torch.bfloat16, torch.float16])
@@ -68,10 +68,11 @@ def test_mm_bf16_small_batch_cutlass(
     k: int,
     res_dtype: torch.dtype,
 ):
-    """Test specifically for small-batch-size optimization (m <= 32) with CUTLASS backend.
+    """Test specifically for small-batch-size optimization (8 <= m <= 32) with CUTLASS backend.
 
     This test exercises the low-latency kernel path which uses the transpose trick
-    to improve CTA utilization for small M values.
+    to improve CTA utilization for small M values. We require m >= 8 to ensure
+    alignment requirements are met after the transpose (bfloat16 requires 8-element alignment).
     """
     compute_capability = get_compute_capability(torch.device(device="cuda"))
     compute_capability_number = compute_capability[0] * 10 + compute_capability[1]
