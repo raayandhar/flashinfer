@@ -332,7 +332,7 @@ def mm_bf16(
     pdl: bool = False,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "tgv",
+    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "auto",
 ) -> torch.Tensor:
     r"""MM BF16
 
@@ -357,7 +357,7 @@ def mm_bf16(
         Output dtype, bf16 or fp16. Enabled for CUTLASS and cuDNN backends. Defaults to ``torch.bfloat16``.
 
     backend: Literal["cudnn", "cutlass", "tgv", "auto"]
-        The backend to use for the operation. Defaults to ``"tgv"``.
+        The backend to use for the operation. Defaults to ``"auto"``.
         ``"cudnn"`` uses the cuDNN backend.
         ``"cutlass"`` uses the CUTLASS backend.
         ``"tgv"`` uses the TGV backend.
@@ -517,7 +517,7 @@ def bmm_bf16(
     B: torch.Tensor,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "auto"] = "cutlass",
+    backend: Literal["cudnn", "cutlass", "auto"] = "auto",
 ) -> torch.Tensor:
     r"""BMM BF16
 
@@ -536,7 +536,7 @@ def bmm_bf16(
         Output dtype, bf16 (default) or fp16.
 
     backend: Literal["cudnn", "cutlass", "auto"]
-        Backend to use, defaults to "cutlass". ``"auto"`` allows selecting the best tactic from all available backends when autotune is enabled.
+        Backend to use, defaults to "auto". ``"auto"`` allows selecting the best tactic from all available backends when autotune is enabled.
 
     Returns
     -------
