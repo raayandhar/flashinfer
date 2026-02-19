@@ -192,7 +192,7 @@ def _cutlass_mm_bf16_requirement(
     out_dtype: torch.dtype = torch.bfloat16,
     bias: Optional[torch.Tensor] = None,
     pdl: bool = False,
-    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "tgv",
+    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "cudnn",
 ):
     if bias is not None:
         raise ValueError(
@@ -216,7 +216,7 @@ def _cudnn_mm_bf16_requirement(
     out_dtype: torch.dtype = torch.bfloat16,
     bias: Optional[torch.Tensor] = None,
     pdl: bool = False,
-    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "tgv",
+    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "cudnn",
 ):
     if bias is not None:
         raise ValueError(
@@ -241,7 +241,7 @@ def _tgv_gemm_requirement(
     out_dtype: torch.dtype = torch.bfloat16,
     bias: Optional[torch.Tensor] = None,
     pdl: bool = False,
-    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "tgv",
+    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "cudnn",
 ):
     if out_dtype != torch.bfloat16:
         raise ValueError(
@@ -257,7 +257,7 @@ def _check_mm_bf16_problem_size(
     pdl: bool = False,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "tgv",
+    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "cudnn",
 ):
     if a.dtype != torch.bfloat16:
         raise ValueError(
@@ -298,7 +298,7 @@ def _heuristic_func_mm_bf16(
     pdl: bool = False,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "tgv",
+    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "cudnn",
 ):
     heuristic_backends = []
     if bias is not None or pdl:
@@ -332,7 +332,7 @@ def mm_bf16(
     pdl: bool = False,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "auto",
+    backend: Literal["cudnn", "cutlass", "tgv", "auto"] = "cudnn",
 ) -> torch.Tensor:
     r"""MM BF16
 
@@ -357,7 +357,7 @@ def mm_bf16(
         Output dtype, bf16 or fp16. Enabled for CUTLASS and cuDNN backends. Defaults to ``torch.bfloat16``.
 
     backend: Literal["cudnn", "cutlass", "tgv", "auto"]
-        The backend to use for the operation. Defaults to ``"auto"``.
+        The backend to use for the operation. Defaults to ``"cudnn"``.
         ``"cudnn"`` uses the cuDNN backend.
         ``"cutlass"`` uses the CUTLASS backend.
         ``"tgv"`` uses the TGV backend.
@@ -433,7 +433,7 @@ def _cutlass_bmm_bf16_requirement(
     B: torch.Tensor,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "auto"] = "cutlass",
+    backend: Literal["cudnn", "cutlass", "auto"] = "cudnn",
 ):
     _validate_bf16_output_dtype(out_dtype)
 
@@ -446,7 +446,7 @@ def _cudnn_bmm_bf16_requirement(
     B: torch.Tensor,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "auto"] = "cutlass",
+    backend: Literal["cudnn", "cutlass", "auto"] = "cudnn",
 ):
     _validate_bf16_output_dtype(out_dtype)
     _check_cudnn_availability()
@@ -458,7 +458,7 @@ def _check_bmm_bf16_problem_size(
     B: torch.Tensor,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "auto"] = "cutlass",
+    backend: Literal["cudnn", "cutlass", "auto"] = "cudnn",
 ):
     if A.dtype != torch.bfloat16:
         raise ValueError(
@@ -493,7 +493,7 @@ def _heuristic_func_bmm_bf16(
     B: torch.Tensor,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "auto"] = "cutlass",
+    backend: Literal["cudnn", "cutlass", "auto"] = "cudnn",
 ):
     heuristic_backends = []
     if "cudnn" in suitable_backends:
@@ -517,7 +517,7 @@ def bmm_bf16(
     B: torch.Tensor,
     out: Optional[torch.Tensor] = None,
     out_dtype: torch.dtype = torch.bfloat16,
-    backend: Literal["cudnn", "cutlass", "auto"] = "auto",
+    backend: Literal["cudnn", "cutlass", "auto"] = "cudnn",
 ) -> torch.Tensor:
     r"""BMM BF16
 
@@ -536,7 +536,7 @@ def bmm_bf16(
         Output dtype, bf16 (default) or fp16.
 
     backend: Literal["cudnn", "cutlass", "auto"]
-        Backend to use, defaults to "auto". ``"auto"`` allows selecting the best tactic from all available backends when autotune is enabled.
+        Backend to use, defaults to "cudnn". ``"auto"`` allows selecting the best tactic from all available backends when autotune is enabled.
 
     Returns
     -------
