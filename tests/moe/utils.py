@@ -33,11 +33,13 @@ class QuantMode(IntEnum):
     FP8_PER_TENSOR = 6
     BF16 = 7
     MXINT4_BF16_BF16 = 8
+    FP8_PER_CHANNEL = 9
 
 
 NON_GATED_ACTIVATION_SUPPORTED_QUANT_MODES = [
     QuantMode.FP4_NVFP4_NVFP4,
     QuantMode.FP8_PER_TENSOR,
+    QuantMode.FP8_PER_CHANNEL,
 ]
 
 
